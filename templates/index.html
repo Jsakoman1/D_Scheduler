@@ -6,15 +6,32 @@
     <title>Home</title>
 </head>
 <body>
-    {% if username %}
-    <h1>Welcome, {{ username }}</h1>
-    <a href="/workers">Manage Workers</a>
-    <a href="/positions">Manage Positions</a>
-    <a href="/logout">Logout</a>
-    {% else %}
-    <h1>Welcome to D Scheduler</h1>
-    <a href="/login">Login</a>
-    <a href="/register">Register</a>
-    {% endif %}
+    <h1>Welcome, {{ user.username }}</h1>
+
+    <h2>Workers:</h2>
+    <ul>
+        {% for worker in workers %}
+            <li>
+                {{ worker.name }}
+                <a href="{{ url_for('edit_worker', worker_id=worker.id) }}">Edit</a>
+                <a href="{{ url_for('remove_worker', worker_id=worker.id) }}">Remove</a>
+            </li>
+        {% endfor %}
+    </ul>
+    <a href="{{ url_for('add_worker') }}">Add New Worker</a>
+
+    <h2>Positions:</h2>
+    <ul>
+        {% for position in positions %}
+            <li>
+                {{ position.name }}
+                <a href="{{ url_for('edit_position', position_id=position.id) }}">Edit</a>
+                <a href="{{ url_for('remove_position', position_id=position.id) }}">Remove</a>
+            </li>
+        {% endfor %}
+    </ul>
+    <a href="{{ url_for('add_position') }}">Add New Position</a>
+
+    <a href="{{ url_for('logout') }}">Logout</a>
 </body>
 </html>

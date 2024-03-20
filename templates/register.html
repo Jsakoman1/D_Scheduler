@@ -7,16 +7,11 @@
 </head>
 <body>
     <h1>Register</h1>
-    <form action="/register" method="POST">
-        <label for="username">Username:</label><br>
-        <input type="text" id="username" name="username"><br>
-        <label for="password">Password:</label><br>
-        <input type="password" id="password" name="password"><br>
-        <label for="role">Role:</label><br>
-        <select id="role" name="role">
-            <option value="1">Employer</option>
-            <option value="2">Employee</option>
-        </select><br><br>
+    <form action="{{ url_for('register') }}" method="post">
+        <label for="username">Username:</label>
+        <input type="text" id="username" name="username" required><br><br>
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" required><br><br>
         <input type="submit" value="Register">
     </form>
 </body>
