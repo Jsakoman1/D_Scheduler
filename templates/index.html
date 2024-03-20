@@ -1,45 +1,27 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>User Dashboard</title>
+    <title>User List</title>
 </head>
 <body>
-    {% include 'navbar.html' %}
-    <h1>Welcome, {{ current_user.username }}!</h1>
-    <h2>Subscription Details:</h2>
-    {% if subscriptions %}
-        <ul>
-            {% for subscription in subscriptions %}
-                <li>Status: {{ subscription.status }}, Start Date: {{ subscription.start_date }}, End Date: {{ subscription.end_date }}</li>
+    <h1>User List</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <td>{{ user[0] }}</td>
+                <td>{{ user[1] }}</td>
+            </tr>
             {% endfor %}
-        </ul>
-    {% else %}
-        <p>No subscriptions found.</p>
-    {% endif %}
-    
-    <h2>Your Workers:</h2>
-    {% if workers %}
-        <ul>
-            {% for worker in workers %}
-                <li>{{ worker.name }}</li>
-            {% endfor %}
-        </ul>
-    {% else %}
-        <p>No workers found.</p>
-    {% endif %}
-    
-    <h2>Your Positions:</h2>
-    {% if positions %}
-        <ul>
-            {% for position in positions %}
-                <li>{{ position.title }}</li>
-            {% endfor %}
-        </ul>
-    {% else %}
-        <p>No positions found.</p>
-    {% endif %}
+        </tbody>
+    </table>
 </body>
 </html>
