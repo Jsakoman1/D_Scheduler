@@ -3,25 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>User List</title>
+    <title>Home</title>
 </head>
 <body>
-    <h1>User List</h1>
-    <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Name</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for user in users %}
-            <tr>
-                <td>{{ user[0] }}</td>
-                <td>{{ user[1] }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    {% if username %}
+    <h1>Welcome, {{ username }}</h1>
+    <a href="/workers">Manage Workers</a>
+    <a href="/positions">Manage Positions</a>
+    <a href="/logout">Logout</a>
+    {% else %}
+    <h1>Welcome to D Scheduler</h1>
+    <a href="/login">Login</a>
+    <a href="/register">Register</a>
+    {% endif %}
 </body>
 </html>
