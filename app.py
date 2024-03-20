@@ -123,7 +123,7 @@ def admin_dashboard():
     if 'admin_logged_in' not in session:
         flash('You are not authorized to access this page.', 'error')
         return redirect(url_for('admin_login'))
-    
+
     # Fetch all users or perform other admin tasks
     all_users = User.query.all()
     return render_template('admin_dashboard.html', users=all_users)
@@ -341,7 +341,7 @@ def index():
     current_user_subscriptions = Subscription.query.filter_by(user_id=current_user.id).all()
     current_user_workers = Worker.query.filter_by(user_id=current_user.id).all()
     current_user_positions = Position.query.filter_by(user_id=current_user.id).all()
-    return render_template('index.html', 
+    return render_template('index.html',
                            subscriptions=current_user_subscriptions,
                            workers=current_user_workers,
                            positions=current_user_positions)
@@ -365,8 +365,8 @@ def clear_cookies():
 
 
 # Create database tables within the application context
-with app.app_context():
-    db.create_all()
 
-if __name__ == '__main__':
-    app.run(debug=True)
+if __name__ == "__main__":
+    with app.app_context():
+        db.create_all()
+        app.run(host='0.0.0.0', port=5005)
