@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Worker</title>
+</head>
+<body>
+    {% include 'navbar.html' %}
+    <h1>Create Worker</h1>
+    <form method="POST" action="/workers/create"> <!-- Update the action attribute -->
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name"><br>
+        <label for="user_id">User ID:</label>
+        <input type="number" id="user_id" name="user_id"><br>
+        <button type="submit">Submit</button>
+    </form>
+</body>
+</html>

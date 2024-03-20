@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workers</title>
+</head>
+<body>
+    {% include 'navbar.html' %}
+    <h1>Workers</h1>
+    <a href="{{ url_for('create_worker') }}">Add Worker</a>
+    <table border="1">
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>User ID</th>
+            <th>Actions</th>
+        </tr>
+        {% for worker in workers %}
+        <tr>
+            <td>{{ worker.id }}</td>
+            <td>{{ worker.name }}</td>
+            <td>{{ worker.user_id }}</td>
+            <td>
+                <a href="{{ url_for('update_worker', worker_id=worker.id) }}">Edit</a>
+                <form method="POST" action="{{ url_for('delete_worker', worker_id=worker.id) }}" style="display:inline;">
+                    <button type="submit">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Update Worker</title>
+</head>
+<body>
+    {% include 'navbar.html' %}
+    <h1>Update Worker</h1>
+    <form method="POST" action="/workers/{{ worker.id }}/update">
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name" value="{{ worker.name }}"><br>
+        <button type="submit">Update</button>
+    </form>
+</body>
+</html>
