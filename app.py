@@ -3,24 +3,26 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from datetime import datetime
 from functools import wraps
-import mysql.connector
 
-
+# Initialize Flask app
 app = Flask(__name__)
-app.secret_key = 'your_secret_key'
+app.secret_key = 'your_secret_key'  # Change this to a secure key
 
-# Initialize MySQL connection
-db = mysql.connector.connect(
-    host="sakoman.mysql.pythonanywhere-services.com",
-    user="sakoman",
+
+
+SQLALCHEMY_DATABASE_URI = "mysql+mysqlconnector://{username}:{password}@{hostname}/{databasename}".format(
+    username="sakoman",
     password="NekaNovaLozinka123",
-    database="sakoman$D_Scheduler"
+    hostname="sakoman.mysql.pythonanywhere-services.com",
+    databasename="sakoman$D_Scheduler",
 )
-cursor = db.cursor()
+app.config["SQLALCHEMY_DATABASE_URI"] = SQLALCHEMY_DATABASE_URI
+app.config["SQLALCHEMY_POOL_RECYCLE"] = 299
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-# Initialize Flask-Login
-login_manager = LoginManager()
-login_manager.init_app(app)
+# Initialize SQLAlchemy database instance
+db = SQLAlchemy(app)
+
 
 
 # Define User model
