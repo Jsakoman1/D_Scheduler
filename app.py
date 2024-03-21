@@ -1,233 +1,187 @@
-from flask import Flask, session, redirect, url_for, render_template, request, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from datetime import datetime
+from functools import wraps
+import mysql.connector
+
 
 app = Flask(__name__)
-app.secret_key = "your_secret_key"  # Change this to a secure secret key
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///your_database.db'  # SQLite database for demonstration
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SESSION_TYPE'] = 'filesystem'
+app.secret_key = 'your_secret_key'
 
-db = SQLAlchemy(app)
-login_manager = LoginManager(app)
-login_manager.login_view = 'login'
+# Initialize MySQL connection
+db = mysql.connector.connect(
+    host="sakoman.mysql.pythonanywhere-services.com",
+    user="sakoman",
+    password="NekaNovaLozinka123",
+    database="sakoman$D_Scheduler"
+)
+cursor = db.cursor()
 
+# Initialize Flask-Login
+login_manager = LoginManager()
+login_manager.init_app(app)
+
+
+# Define User model
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(100), unique=True, nullable=False)
-    password = db.Column(db.String(100), nullable=False)
-    role_id = db.Column(db.Integer, nullable=False)  # Define role_id column
-    workers = db.relationship('Worker', backref='user', lazy=True, cascade="all, delete-orphan")
-    positions = db.relationship('Position', backref='user', lazy=True, cascade="all, delete-orphan")
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password = db.Column(db.String(80), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    role = db.Column(db.String(20), nullable=False)
+    subscription_id = db.Column(db.Integer, db.ForeignKey('subscription.id'))
+    subscription = db.relationship('Subscription', back_populates='users')
 
-class Worker(db.Model):
+# Define Subscription model
+class Subscription(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    email = db.Column(db.String(100), unique=True, nullable=False)
-    password = db.Column(db.String(100), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    status = db.Column(db.String(20), nullable=False)  # 'active' or 'inactive'
+    start_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    end_date = db.Column(db.DateTime)
 
-class Position(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    users = db.relationship('User', back_populates='subscription')
 
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
+# Function to create database tables
+def create_tables():
+    with app.app_context():
+        db.create_all()
 
+# Call the function to create tables
+create_tables()
+
+
+# Initialize Flask-Login
+login_manager = LoginManager()
+login_manager.init_app(app)
+
+# Custom decorators for role-based access control
+def employer_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if current_user.role != 'employer':
+            flash('You do not have permission to access this page.', 'danger')
+            return redirect(url_for('index'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if current_user.role != 'admin':
+            flash('You do not have permission to access this page.', 'danger')
+            return redirect(url_for('index'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def employee_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if current_user.role != 'employee':
+            flash('You do not have permission to access this page.', 'danger')
+            return redirect(url_for('index'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+# Home route
 @app.route('/')
 def index():
-    if 'worker_id' in session:
-        return redirect(url_for('index_employee'))
+    if current_user.is_authenticated:
+        username = current_user.username
+        return render_template('index.html', username=username)
+    else:
+        return render_template('index.html')
 
-    if not session.get('user_id'):
-        return redirect(url_for('login'))
-
-    user_id = session['user_id']
-    user = User.query.get(user_id)
-    workers = Worker.query.filter_by(user_id=user_id).all()
-    positions = Position.query.filter_by(user_id=user_id).all()
-
-    return render_template('index.html', user=user, workers=workers, positions=positions)
-
-@app.route('/index_employee')
-@login_required
-def index_employee():
-    if 'worker_id' not in session:
-        return redirect(url_for('login_employee'))
-
-    worker_id = session['worker_id']
-    worker = Worker.query.get(worker_id)
-    return render_template('index_employee.html', worker=worker)
-
+# Login route
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    # Log out any current user
-    session.pop('user_id', None)
-    logout_user()
-
     if request.method == 'POST':
-        login_type = request.form['login_type']
-        if login_type == 'employer':
-            return redirect(url_for('login_employer'))
-        elif login_type == 'employee':
-            return redirect(url_for('login_employee'))
+        username = request.form.get('username')
+        password = request.form.get('password')
+        
+        user = User.query.filter_by(username=username, password=password).first()
+        if user:
+            login_user(user)
+            if user.role == 'admin':
+                return redirect(url_for('admin_dashboard'))
+            elif user.role == 'employer':
+                return redirect(url_for('employer_dashboard'))
+            elif user.role == 'employee':
+                return redirect(url_for('employee_dashboard'))
+        else:
+            flash('Invalid username or password', 'danger')
+
     return render_template('login.html')
 
-
-
-
-
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        new_user = User(username=username, password=password, role_id=1)
-        db.session.add(new_user)
-        db.session.commit()
-        return redirect(url_for('login'))
-    return render_template('register.html')
-
+# Logout route
 @app.route('/logout')
 @login_required
 def logout():
-    session.pop('user_id', None)
     logout_user()
-    return redirect(url_for('login'))
+    return redirect(url_for('index'))
 
-@app.route('/admin', methods=['GET', 'POST'])
+# Subscribe route
+@app.route('/subscribe')
 @login_required
-def admin():
-    session.pop('user_id', None)  # Clear user_id from session
-    if request.method == 'POST':
-        # Check if form submitted to delete a user
-        user_id = request.form.get('user_id')
-        if user_id:
-            user = User.query.get(user_id)
-            db.session.delete(user)
-            db.session.commit()
-            return redirect(url_for('admin'))
+def subscribe():
+    if not current_user.subscription:
+        new_subscription = Subscription(status='active')
+        db.session.add(new_subscription)
+        current_user.subscription = new_subscription
+        db.session.commit()
+        flash('You have subscribed successfully!', 'success')
+    else:
+        flash('You are already subscribed', 'info')
+    return redirect(url_for('profile'))
 
+# Unsubscribe route
+@app.route('/unsubscribe')
+@login_required
+def unsubscribe():
+    if current_user.subscription:
+        db.session.delete(current_user.subscription)
+        current_user.subscription = None
+        db.session.commit()
+        flash('You have unsubscribed successfully!', 'success')
+    else:
+        flash('You are not subscribed', 'info')
+    return redirect(url_for('profile'))
+
+# User profile route
+@app.route('/profile')
+@login_required
+def profile():
+    username = current_user.username
+    email = current_user.email
+    role = current_user.role
+    subscription_status = current_user.subscription.status if current_user.subscription else None
+    subscription_start_date = current_user.subscription.start_date.strftime('%Y-%m-%d') if current_user.subscription else None
+    subscription_end_date = current_user.subscription.end_date.strftime('%Y-%m-%d') if current_user.subscription else None
+
+    return render_template('profile.html', username=username, email=email, role=role, subscription_status=subscription_status, subscription_start_date=subscription_start_date, subscription_end_date=subscription_end_date)
+
+# Admin dashboard route
+@app.route('/admin')
+@login_required
+@admin_required
+def admin_dashboard():
     users = User.query.all()
     return render_template('admin.html', users=users)
 
-@app.route('/users')
+# Employer dashboard route
+@app.route('/employer')
 @login_required
-def display_users():
-    if not session.get('user_id'):
-        return redirect(url_for('login'))
-    users = User.query.all()
-    return render_template('users.html', users=users)
+@employer_required
+def employer_dashboard():
+    return render_template('employer.html', username=current_user.username)
 
-@app.route('/login_employer', methods=['GET', 'POST'])
-def login_employer():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        user = User.query.filter_by(username=username, password=password, role_id=1).first()
-        if user:
-            session['user_id'] = user.id
-            login_user(user)
-            return redirect(url_for('index'))
-        else:
-            flash('Invalid username or password', 'error')
-    return render_template('login_employer.html')
-
-
-@app.route('/login_employee', methods=['GET', 'POST'])
-def login_employee():
-    if request.method == 'POST':
-        email = request.form['email']
-        password = request.form['password']
-        worker = Worker.query.filter_by(email=email, password=password).first()
-        if worker:
-            session['worker_id'] = worker.id
-            return redirect(url_for('index'))  # Redirect to appropriate page after login
-        else:
-            flash('Invalid email or password', 'error')
-    return render_template('login_employee.html')
-
-
-@app.route('/delete_user/<int:user_id>', methods=['POST'])
+# Employee dashboard route
+@app.route('/employee')
 @login_required
-def delete_user(user_id):
-    user = User.query.get_or_404(user_id)
-    # Delete the user from the database
-    db.session.delete(user)
-    db.session.commit()
-    # Redirect to the admin page after deletion
-    return redirect(url_for('admin'))
+@employee_required
+def employee_dashboard():
+    return render_template('employee.html', username=current_user.username)
 
-@app.route('/add_worker', methods=['GET', 'POST'])
-@login_required
-def add_worker():
-    if request.method == 'POST':
-        name = request.form['name']
-        email = request.form['email']
-        password = request.form['password']
-        user_id = session['user_id']  # Get the user ID from the session
-        new_worker = Worker(name=name, email=email, password=password, user_id=user_id)
-        db.session.add(new_worker)
-        db.session.commit()
-        return redirect(url_for('index'))
-    return render_template('add_worker.html')
-
-
-@app.route('/edit_worker/<int:worker_id>', methods=['GET', 'POST'])
-@login_required
-def edit_worker(worker_id):
-    worker = Worker.query.get(worker_id)
-    if request.method == 'POST':
-        # Update the worker with the form data
-        worker.name = request.form['name']
-        worker.email = request.form['email']
-        worker.password = request.form['password']
-        db.session.commit()
-        return redirect(url_for('index'))
-    return render_template('edit_worker.html', worker=worker)
-
-
-@app.route('/remove_worker/<int:worker_id>', methods=['POST'])
-@login_required
-def remove_worker(worker_id):
-    worker = Worker.query.get(worker_id)
-    db.session.delete(worker)
-    db.session.commit()
-    return redirect(url_for('index'))
-
-@app.route('/add_position', methods=['GET', 'POST'])
-@login_required
-def add_position():
-    if request.method == 'POST':
-        name = request.form['name']
-        user_id = session['user_id']  # Get the user ID from the session
-        new_position = Position(name=name, user_id=user_id)
-        db.session.add(new_position)
-        db.session.commit()
-        return redirect(url_for('index'))
-    return render_template('add_position.html')
-
-@app.route('/edit_position/<int:position_id>', methods=['GET', 'POST'])
-@login_required
-def edit_position(position_id):
-    position = Position.query.get_or_404(position_id)
-    if request.method == 'POST':
-        position.name = request.form['name']
-        db.session.commit()
-        return redirect(url_for('index'))
-    return render_template('edit_position.html', position=position)
-
-@app.route('/remove_position/<int:position_id>', methods=['POST'])
-@login_required
-def remove_position(position_id):
-    position = Position.query.get_or_404(position_id)
-    db.session.delete(position)
-    db.session.commit()
-    return redirect(url_for('index'))
-
-if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
+if __name__ == '__main__':
     app.run(debug=True)
