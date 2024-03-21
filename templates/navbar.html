@@ -1,7 +1,18 @@
+<!-- navbar.html -->
 <nav>
     <ul>
-        <li><a href="{{ url_for('index') }}">Home</a></li>
-        <li><a href="{{ url_for('login') }}">Login</a></li>
-        <li><a href="{{ url_for('logout') }}">Logout</a></li>
+        <li><a href="/">Home</a></li>
+        {% if current_user.is_authenticated %}
+            {% if current_user.role == 'employer' %}
+                <li><a href="/employer_dashboard">Employer Page</a></li>
+            {% endif %}
+            <li><a href="/logout">Logout</a></li>
+            {% if current_user.role == 'admin' %}
+                <li><a href="/admin">Admin Panel</a></li>
+            {% endif %}
+        {% else %}
+            <li><a href="/login">Login</a></li>
+            <li><a href="/register">Register</a></li>
+        {% endif %}
     </ul>
 </nav>

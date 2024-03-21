@@ -1,36 +1,32 @@
+<!-- admin.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard</title>
+    <title>Admin Panel</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-    <h1>Admin Dashboard</h1>
+    {% include 'navbar.html' %}
+    <h2>Admin Panel</h2>
     <table>
         <thead>
             <tr>
+                <th>ID</th>
                 <th>Username</th>
-                <th>Email</th>
                 <th>Role</th>
-                <th>Subscription Status</th>
-                <th>Subscription Start Date</th>
-                <th>Subscription End Date</th>
+                <th>Action</th>
             </tr>
         </thead>
         <tbody>
             {% for user in users %}
             <tr>
+                <td>{{ user.id }}</td>
                 <td>{{ user.username }}</td>
-                <td>{{ user.email }}</td>
                 <td>{{ user.role }}</td>
-                <td>{{ user.subscription.status if user.subscription else "N/A" }}</td>
-                <td>{{ user.subscription.start_date.strftime('%Y-%m-%d') if user.subscription else "N/A" }}</td>
-                <td>{{ user.subscription.end_date.strftime('%Y-%m-%d') if user.subscription else "N/A" }}</td>
+                <td><a href="/delete_user/{{ user.id }}">Delete</a></td>
             </tr>
             {% endfor %}
         </tbody>
-    </table>
-    <a href="/logout">Logout</a>
-</body>
-</html>
+   

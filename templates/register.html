@@ -1,18 +1,25 @@
+<!-- register.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-    <h1>Register</h1>
-    <form action="{{ url_for('register') }}" method="post">
-        <label for="username">Username:</label>
-        <input type="text" id="username" name="username" required><br><br>
-        <label for="password">Password:</label>
-        <input type="password" id="password" name="password" required><br><br>
-        <input type="submit" value="Register">
-    </form>
+    {% include 'navbar.html' %}
+    <div class="container">
+        <h2>Register - Company</h2>
+        <form action="/register" method="post">
+            <input type="text" name="username" placeholder="Enter your username" required><br>
+            <input type="password" name="password" placeholder="Enter your password" required><br>
+            <button type="submit">Register</button>
+        </form>
+        {% if message %}
+            <p class="error-message">{{ message }}</p>
+        {% endif %}
+        <p>Already have an account? <a href="/login">Log in here</a>.</p>
+    </div>
 </body>
 </html>
