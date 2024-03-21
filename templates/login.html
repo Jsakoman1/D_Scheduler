@@ -11,10 +11,22 @@
         <p style="color: red;">{{ error }}</p>
     {% endif %}
     <form action="{{ url_for('login') }}" method="post">
-        <label for="username">Username:</label>
-        <input type="text" id="username" name="username" required><br><br>
-        <label for="password">Password:</label>
-        <input type="password" id="password" name="password" required><br><br>
+        <label for="login_type">Login As:</label>
+        <select id="login_type" name="login_type">
+            <option value="employer">Employer</option>
+            <option value="employee">Employee</option>
+        </select><br><br>
+        {% if login_type == 'employer' %}
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" required><br><br>
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required><br><br>
+        {% elif login_type == 'employee' %}
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" required><br><br>
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required><br><br>
+        {% endif %}
         <input type="submit" value="Login">
     </form>
 </body>
