@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Item</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    {% include 'navbar.html' %}
+    <h1>Edit {{ table_name }}</h1>
+    <form action="/edit/{{ table_name }}/{{ item['id_' + table_name.lower()] }}" method="post">
+        {% for column, value in item.items() %}
+            {% if column == 'id_function' %}
+                <label for="{{ column }}">Function:</label>
+                <select id="{{ column }}" name="{{ column }}">
+                    {% for function in function_data %}
+                        <option value="{{ function.id_function }}" {% if function.id_function == value %}selected{% endif %}>{{ function.name }}</option>
+                    {% endfor %}
+                </select><br><br>
+            {% elif column == 'date_of_birth' %}
+                <label for="{{ column }}">Date of Birth:</label>
+                <input type="date" id="{{ column }}" name="{{ column }}" value="{{ value }}"><br><br>
+            {% else %}
+                <label for="{{ column }}">{{ column|capitalize }}:</label>
+                <input type="text" id="{{ column }}" name="{{ column }}" value="{{ value }}"><br><br>
+            {% endif %}
+        {% endfor %}
+        <button type="submit">Update</button>
+    </form>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ table_name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    {% include 'navbar.html' %}
+    <h1>{{ table_name }}</h1>
+    {% if items %}
+    <table border="1">
+        <tr>
+            {% set keys = items[0].keys() %}
+            {% for key in keys %}
+                {% if key != '_sa_instance_state' %}
+                    <th>{{ key }}</th>
+                {% endif %}
+            {% endfor %}
+        </tr>
+        {% for item in items %}
+            <tr>
+                {% for key in keys %}
+                    {% if key != '_sa_instance_state' %}
+                        <td>{{ item[key] }}</td>
+                    {% endif %}
+                {% endfor %}
+            </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+        <p>No data available.</p>
+    {% endif %}
+</body>
+</html>

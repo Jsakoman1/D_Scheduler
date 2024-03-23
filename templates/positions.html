@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ table_name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    {% include 'navbar.html' %}
+    <h1>{{ table_name }}</h1>
+    {% if positions %}
+    <table border="1">
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Action</th>
+        </tr>
+        {% for position in positions %}
+            <tr>
+                <td>{{ position.position_id }}</td>
+                <td>{{ position.name }}</td>
+                <td>
+                    <a href="/edit/{{ table_name }}/{{ position.position_id }}">Edit</a>
+                    <form action="/delete/{{ table_name }}/{{ position.position_id }}" method="post">
+                        <button type="submit">Delete</button>
+                    </form>
+                </td>
+            </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <p>No positions available.</p>
+    {% endif %}
+
+    <h2>Add New Position</h2>
+    <form action="/add/position" method="post">
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name"><br><br>
+        
+        <button type="submit">Add Position</button>
+    </form>
+
+</body>
+</html>

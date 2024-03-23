@@ -1,56 +1,20 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from flask import Flask, render_template, request, redirect, flash, url_for, session
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from functools import wraps
+import hashlib
+import datetime
+
+from datetime import timedelta
+from collections import OrderedDict
+import os
 from sqlalchemy.orm import relationship
 
 
-from datetime import datetime
-import os
-
-# Initialize Flask app
 app = Flask(__name__)
-app.secret_key = 'your_secret_key'  # Change this to a secure key
-
-# Define SQLite database path
-basedir = os.path.abspath(os.path.dirname(__file__))
-db_path = os.path.join(basedir, 'app.db')
-
-# Configure SQLite database URI
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + db_path
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-# Initialize SQLAlchemy database instance
-db = SQLAlchemy(app)
-
-# Define User model
-class User(UserMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    password = db.Column(db.String(80), nullable=False)
-    role = db.Column(db.String(20), nullable=False)
-
-    def __init__(self, username, password, role):
-        self.username = username
-        self.password = password
-        self.role = role
+app.secret_key = 'your_secret_key'
 
 
-class Worker(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    function = db.Column(db.String(100), nullable=False)
-    employer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    employer = relationship('User', backref=db.backref('workers', lazy=True))
-
-    def __init__(self, name, function, employer_id):
-        self.name = name
-        self.function = function
-        self.employer_id = employer_id
-
-
-
-
-# Initialize Flask-Login
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
@@ -58,6 +22,283 @@ login_manager.login_view = 'login'
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+
+basedir = os.path.abspath(os.path.dirname(__file__))
+db_path = os.path.join(basedir, 'app.db')
+
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + db_path
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Initialize SQLAlchemy database instance
+db = SQLAlchemy(app)
+
+
+
+
+# Define database models
+class User(db.Model, UserMixin):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(50), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=False, nullable=False)
+    password = db.Column(db.String(64), nullable=False)
+    role = db.Column(db.String(20), nullable=False)
+
+    def __init__(self, username, password, role, email):
+        self.username = username
+        self.password = password
+        self.email = email
+        self.role = role
+    
+class Worker(db.Model):
+    worker_id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False)
+    last_name = db.Column(db.String(50), nullable=False)
+    email = db.Column(db.String(120), nullable=False)
+    function_id = db.Column(db.Integer, db.ForeignKey('function.function_id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    user = db.relationship('User', backref=db.backref('workers', lazy=True))
+    function = db.relationship('Function', back_populates='workers')
+
+    def __init__(self, name, last_name, email, function_id, user_id):
+        self.name = name
+        self.last_name = last_name
+        self.email = email
+
+        self.function_id = function_id
+        self.user_id = user_id
+
+
+
+
+class Function(db.Model):
+    function_id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, nullable=False)
+    name = db.Column(db.String(50), nullable=False)
+
+    workers = db.relationship('Worker', back_populates='function')
+
+
+class Position(db.Model):
+    position_id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, nullable=False)
+    name = db.Column(db.String(50), nullable=False)
+
+
+class Shift(db.Model):
+    shift_id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, nullable=False)
+    name = db.Column(db.String(50), nullable=False)
+
+
+class Slot(db.Model):
+    slot_id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, nullable=False)
+    name = db.Column(db.String(50), nullable=False)
+
+
+class Year_Days(db.Model):
+    __tablename__ = 'year_days' 
+    day_id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, nullable=False)
+    year = db.Column(db.Integer, nullable=False)
+    day_of_year = db.Column(db.Integer, nullable=False)
+    date = db.Column(db.Date, nullable=False)
+    day_of_week = db.Column(db.Integer, nullable=False)
+    week_number = db.Column(db.String(20), nullable=False)
+
+
+class Schedule(db.Model):
+    schedule_id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, nullable=False)
+    worker_id = db.Column(db.Integer, db.ForeignKey('worker.worker_id'), nullable=False)
+    position_id = db.Column(db.Integer, db.ForeignKey('position.position_id'), nullable=False)
+    shift_id = db.Column(db.Integer, db.ForeignKey('shift.shift_id'), nullable=False)
+    slot_id = db.Column(db.Integer, db.ForeignKey('slot.slot_id'), nullable=False)
+    day_id = db.Column(db.Integer, db.ForeignKey('year_days.day_id'), nullable=False)
+    year = db.Column(db.Integer, nullable=False)
+
+    worker = db.relationship('Worker', backref='schedules')
+    position = db.relationship('Position', backref='schedules')
+    shift = db.relationship('Shift', backref='schedules')
+    slot = db.relationship('Slot', backref='schedules')
+    year_day = db.relationship('Year_Days', backref='schedules')
+
+
+
+
+
+
+def employer_required(func):
+    @wraps(func)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            flash('You must be logged in to view this page.', 'error')
+            return redirect(url_for('login'))
+        if current_user.role != 'employer':
+            flash('You do not have permission to view this page.', 'error')
+            return redirect('/')
+        return func(*args, **kwargs)
+    return decorated_function
+
+
+def create_user(username, email, password):
+    user = User(username=username, email=email, password=password, role='employer')
+    db.session.add(user)
+    db.session.commit()
+
+
+def authenticate_user(username, password):
+    user = User.query.filter_by(username=username, password=password).first()
+    return user
+
+
+def get_user_role(user_id):
+    user = User.query.get(user_id)
+    return user.role if user else None
+
+
+def fetch_all(user_id, table_name):
+    if table_name not in ['Worker', 'Function', 'Position', 'Shift', 'Slot', 'Year_Days', 'Schedule']:
+        return None  
+    table_class = globals()[table_name]
+    items = table_class.query.filter_by(user_id=user_id).all()
+    return items
+
+
+
+
+
+
+def fetch_by_id(table_name, item_id, user_id):
+    item = db.session.query(eval(table_name.capitalize())).filter_by(id=item_id, user_id=user_id).first()
+    return item.__dict__ if item else None
+
+def add_item(table_name, user_id, **kwargs):
+    item = eval(table_name.capitalize())(user_id=user_id, **kwargs)
+    db.session.add(item)
+    db.session.commit()
+
+def update_item(table_name, user_id, item_id, **kwargs):
+    item = db.session.query(eval(table_name.capitalize())).filter_by(id=item_id, user_id=user_id).first()
+    if item:
+        for key, value in kwargs.items():
+            setattr(item, key, value)
+        db.session.commit()
+
+def delete_item(table_name, user_id, item_id):
+    item = db.session.query(eval(table_name.capitalize())).filter_by(id=item_id, user_id=user_id).first()
+    if item:
+        db.session.delete(item)
+        db.session.commit()
+
+
+def create_user_database(user_id, year=None):
+    if year is not None:
+        year_int = int(year)
+        # Populate Year_Days table with the days of the given year for the specific user
+        total_days = 366 if year_int % 4 == 0 and (year_int % 100 != 0 or year_int % 400 == 0) else 365
+        day_data = []
+        current_date = datetime.date(year_int, 1, 1)  # Start from January 1st of the given year
+        for i in range(1, total_days + 1):
+            day_of_week = current_date.weekday() + 1  # Adjusting to 1-based index
+            week_year = str(current_date.isocalendar()[0])[2:]  # Get the 2-digit year
+            week_number = str(current_date.isocalendar()[1]).zfill(2)  # Get the 2-digit week and zero-pad if necessary
+            week_number = week_year + week_number  # Concatenate year and week number
+            day_data.append(Year_Days(user_id=user_id, year=year_int, day_of_year=i, date=current_date, day_of_week=day_of_week, week_number=week_number))
+            current_date += datetime.timedelta(days=1)  # Move to the next day
+
+        db.session.add_all(day_data)
+        db.session.commit()
+
+
+
+
+def get_week_number(year, month, day):
+    date_obj = datetime.date(year, month, day)
+    week_number = date_obj.isocalendar()[1]
+    return week_number
+
+def fetch_by_id_days(user_id, day_id):
+    day = Year_Days.query.filter_by(id_day=day_id, user_id=user_id).first()
+    return day.__dict__ if day else None
+
+def fetch_all_unique_years(user_id):
+    # Use distinct() without arguments
+    years = db.session.query(Year_Days.year).filter_by(user_id=user_id).distinct().order_by(Year_Days.year).all()
+    return [year[0] for year in years]
+
+def delete_year_entries(user_id, year):
+    Year_Days.query.filter_by(user_id=user_id, year=year).delete()
+    db.session.commit()
+
+def fetch_days_by_year_and_week(user_id, year, week):
+    days = Year_Days.query.filter_by(user_id=user_id, year=year, week_number=week).all()
+    return [day.__dict__ for day in days]
+
+
+
+# USERS LOGIN / REGISTER / LOGOUT
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    if request.method == 'POST':
+        username = request.form['username']
+        email = request.form['email']
+        password = request.form['password']
+        create_user(username, email, password)
+        flash('Registration successful! Please log in.', 'success')
+        # After registration, log in the user and set session variables
+        user = authenticate_user(username, password)
+        if user:
+            login_user(user)
+            session['user_id'] = user.id
+            session['username'] = user.username
+            return redirect(url_for('dashboard'))  # Redirect to dashboard after registration
+        else:
+            flash('Failed to log in after registration. Please try logging in manually.', 'error')
+            return redirect(url_for('login'))  # Redirect to login page if unable to log in automatically
+    return render_template('register.html')
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        user = User.query.filter_by(username=username).first()
+        if user and user.password == password:
+            login_user(user)
+            session['user_id'] = user.id
+            session['username'] = user.username
+            if user.role == 'employer':
+                return redirect(url_for('index'))  # Redirect to employer dashboard for employers
+            elif user.role == 'admin':
+                return redirect(url_for('admin'))  # Redirect to admin page for admins
+            else:
+                return redirect(url_for('dashboard'))  # Redirect to home for other roles
+        else:
+            flash('Invalid username or password. Please try again.', 'error')
+            return redirect(url_for('login'))  # Redirect back to login page
+    return render_template('login.html')
+
+# User logout route
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    session.pop('user_id', None)
+    session.pop('username', None)
+    flash('You have been logged out.', 'success')
+    return redirect('/login')
+
+
+
+
 
 
 
@@ -86,6 +327,12 @@ def delete_user(user_id):
     if not user_to_delete:
         flash('User not found.', 'error')
         return redirect(url_for('admin'))
+    
+    # Delete the associated workers
+    workers_to_delete = Worker.query.filter_by(employer_id=user_id).all()
+    for worker in workers_to_delete:
+        db.session.delete(worker)
+
 
     # Delete the user from the database
     db.session.delete(user_to_delete)
@@ -95,167 +342,336 @@ def delete_user(user_id):
     return redirect(url_for('admin'))
 
 
-#EMPLOYERS SECTION
-
-@app.route('/employer_dashboard')
-@login_required
-def employer_dashboard():
-    if current_user.role == 'employer':
-        return render_template('employer.html')
-    else:
-        flash('You are not authorized to view this page.', 'error')
-        return redirect(url_for('index'))
-    
-# CRUD operations for workers
-
-# Create a new worker
-@app.route('/add_worker', methods=['GET', 'POST'])
-@login_required
-def add_worker():
-    if current_user.role == 'employer':
-        if request.method == 'POST':
-            name = request.form['name']
-            function = request.form['function']
-            employer_id = current_user.id
-
-            new_worker = Worker(name=name, function=function, employer_id=employer_id)
-            db.session.add(new_worker)
-            db.session.commit()
-            flash('Worker added successfully.', 'success')
-            return redirect(url_for('view_workers'))
-        return render_template('add_worker.html')
-    else:
-        flash('You are not authorized to perform this action.', 'error')
-        return redirect(url_for('index'))
-
-# View all workers
-@app.route('/view_workers')
-@login_required
-def view_workers():
-    if current_user.role == 'employer':
-        workers = Worker.query.filter_by(employer_id=current_user.id).all()
-        return render_template('workers.html', workers=workers)
-    else:
-        flash('You are not authorized to view this page.', 'error')
-        return redirect(url_for('index'))
-
-# Edit a worker
-@app.route('/edit_worker/<int:worker_id>', methods=['GET', 'POST'])
-@login_required
-def edit_worker(worker_id):
-    if current_user.role == 'employer':
-        worker = Worker.query.get(worker_id)
-        if not worker:
-            flash('Worker not found.', 'error')
-            return redirect(url_for('view_workers'))
-
-        if request.method == 'POST':
-            worker.name = request.form['name']
-            worker.function = request.form['function']
-            db.session.commit()
-            flash('Worker updated successfully.', 'success')
-            return redirect(url_for('view_workers'))
-
-        return render_template('edit_worker.html', worker=worker)
-    else:
-        flash('You are not authorized to perform this action.', 'error')
-        return redirect(url_for('index'))
-
-# Delete a worker
-@app.route('/delete_worker/<int:worker_id>', methods=['POST'])
-@login_required
-def delete_worker(worker_id):
-    if current_user.role == 'employer':
-        worker = Worker.query.get(worker_id)
-        if not worker:
-            flash('Worker not found.', 'error')
-            return redirect(url_for('view_workers'))
-
-        db.session.delete(worker)
-        db.session.commit()
-        flash('Worker deleted successfully.', 'success')
-        return redirect(url_for('view_workers'))
-    else:
-        flash('You are not authorized to perform this action.', 'error')
-        return redirect(url_for('index'))
-
-# API endpoint to get worker details
-@app.route('/worker_details/<int:worker_id>')
-@login_required
-def worker_details(worker_id):
-    if current_user.role == 'employer':
-        worker = Worker.query.get(worker_id)
-        if not worker or worker.employer_id != current_user.id:
-            return jsonify({'error': 'Worker not found or unauthorized'})
-        return jsonify({
-            'id': worker.id,
-            'name': worker.name,
-            'function': worker.function
-        })
-    else:
-        return jsonify({'error': 'You are not authorized to view this page.'})
 
 
 
 
-#EMPLOYEES SECTION
+
+# EMPLOYERS SECTION
 
 
-
-
-#ROUTES OTHERS
-    
 @app.route('/')
 def index():
-    return render_template('index.html')
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
+    # Check if the user is logged in
     if current_user.is_authenticated:
-        return redirect(url_for('index'))
-        
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        user = User.query.filter_by(username=username).first()
-        if user and user.password == password:
-            login_user(user)
-            if user.role == 'employer':
-                return redirect(url_for('employer_dashboard'))  # Redirect to employer dashboard for employers
-            elif user.role == 'admin':
-                return redirect(url_for('admin'))  # Redirect to admin page for admins
-            else:
-                return redirect(url_for('index'))  # Redirect to home for other roles
-        else:
-            flash('Invalid username or password. Please try again.', 'error')
-            return redirect(url_for('login'))  # Redirect back to login page
-    return render_template('login.html')
+        # Get username and role from the current_user object
+        username = current_user.username
+        role = current_user.role
+        return render_template('index.html', username=username, role=role)
+    else:
+        # User is not logged in
+        return render_template('index.html', username=None, role=None)
 
 
-@app.route('/logout', methods=['GET', 'POST'])
-@login_required
-def logout():
-    logout_user()
-    return redirect(url_for('index'))
+@app.route('/create_year', methods=['POST'])
+@employer_required
+def create_year():
+    if 'user_id' not in session:
+        flash('You must be logged in to perform this action.', 'error')
+        return redirect('/login')
 
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if current_user.is_authenticated:
-        return redirect(url_for('index'))
-        
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        role = 'employer'  # Set the role to 'employer' for users registering through this form
-        new_user = User(username=username, password=password, role=role)
-        db.session.add(new_user)
-        db.session.commit()
-        flash('Registration successful. Please login.', 'success')
+    year = int(request.form.get('year'))
+    user_id = session['user_id']
+    create_user_database(user_id, year)  # Pass user_id instead of username
+    flash(f'Year {year} and its days created successfully!', 'success')
+    return redirect('/')
+
+@app.route('/database_viewer')
+@employer_required
+def display_database_viewer():
+    if 'user_id' not in session:
+        flash('You must be logged in to view this page.', 'error')
+        return redirect('/login')
+
+    user_id = session['user_id']
+    tables = OrderedDict([
+        ('Workers', fetch_all(user_id, 'Worker')),
+        ('Functions', fetch_all(user_id, 'Function')),
+        ('Positions', fetch_all(user_id, 'Position')),
+        ('Shifts', fetch_all(user_id, 'Shift')),
+        ('Slots', fetch_all(user_id, 'Slot')),
+        ('Year_Days', fetch_all(user_id, 'Year_Days')),
+        ('Schedule', fetch_all(user_id, 'Schedule'))
+    ])
+
+    non_empty_tables = {name: data for name, data in tables.items() if data}
+    any_empty_table = any(len(data) == 0 for data in tables.values())
+
+    return render_template('database_viewer.html', tables=non_empty_tables, any_empty_table=any_empty_table)
+
+
+
+
+
+# CRUD DATABASE TABLE 
+
+# Universal edit item route
+@app.route('/edit/<table_name>/<int:item_id>', methods=['GET', 'POST'])
+@employer_required
+def edit_item(table_name, item_id):
+    if 'user_id' not in session:
+        flash('You must be logged in to perform this action.', 'error')
         return redirect(url_for('login'))
-    return render_template('register.html')
 
+    if request.method == 'POST':
+        user_id = session['user_id']
+        form_data = dict(request.form)
+        update_item(table_name, user_id, item_id, **form_data)
+        flash('Item details updated successfully!', 'success')
+        return redirect(f'/{table_name.lower()}s')
+    
+    elif request.method == 'GET':
+        user_id = session['user_id']
+        item = fetch_by_id(table_name, item_id, user_id)
+        if item:
+            # Additional data fetching for specific tables can be done here
+            return render_template('edit_item.html', table_name=table_name, item=item)
+        else:
+            flash('Item not found!', 'error')
+            return redirect('/')
+
+# Universal add item route
+@app.route('/add/<table_name>', methods=['POST'])
+@employer_required
+def add_item_route(table_name):
+    if 'user_id' not in session:
+        flash('You must be logged in to perform this action.', 'error')
+        return redirect(url_for('login'))
+        
+
+    user_id = session['user_id']
 
     
+    add_item(table_name, user_id, **request.form)
+    flash('New item added successfully!', 'success')
+
+    # Redirect to the appropriate route
+    return redirect(f'/{table_name.lower()}s')
+
+# Universal delete item route
+@app.route('/delete/<table_name>/<int:item_id>', methods=['POST'])
+@employer_required
+def delete_item_route(table_name, item_id):
+    if 'user_id' not in session:
+        flash('You must be logged in to perform this action.', 'error')
+        return redirect(url_for('login'))
+
+    user_id = session['user_id']
+    delete_item(table_name, user_id, item_id)
+    flash('Item deleted successfully!', 'success')
+
+    # Redirect to the appropriate route
+    return redirect(f'/{table_name.lower()}s')
+
+
+
+
+
+
+
+# Display workers route
+@app.route('/workers')
+@employer_required
+def display_workers():
+    if 'user_id' not in session:
+        flash('You must be logged in to view this page.', 'error')
+        return redirect(url_for('login'))
+
+    user_id = session['user_id']
+    workers = fetch_all(user_id, 'Worker')
+    functions = fetch_all(user_id, 'Function')
+    return render_template('workers.html', workers=workers, functions=functions)
+
+# Display functions route
+@app.route('/functions')
+@employer_required
+def display_functions():
+    if 'user_id' not in session:
+        flash('You must be logged in to view this page.', 'error')
+        return redirect(url_for('login'))
+
+    user_id = session['user_id']
+    functions = fetch_all(user_id, 'Function')
+    return render_template('functions.html', functions=functions)
+
+# Display positions route
+@app.route('/positions')
+@employer_required
+def display_positions():
+    if 'user_id' not in session:
+        flash('You must be logged in to view this page.', 'error')
+        return redirect(url_for('login'))
+
+    user_id = session['user_id']
+    positions = fetch_all(user_id, 'Position')
+    return render_template('positions.html', positions=positions)
+
+# Display shifts route
+@app.route('/shifts')
+@employer_required
+def display_shifts():
+    if 'user_id' not in session:
+        flash('You must be logged in to view this page.', 'error')
+        return redirect(url_for('login'))
+
+    user_id = session['user_id']
+    shifts = fetch_all(user_id, 'Shift')
+    return render_template('shifts.html', shifts=shifts)
+
+# Display slots route
+@app.route('/slots')
+@employer_required
+def display_slots():
+    if 'user_id' not in session:
+        flash('You must be logged in to view this page.', 'error')
+        return redirect(url_for('login'))
+
+    user_id = session['user_id']
+    slots = fetch_all(user_id, 'Slot')
+    return render_template('slots.html', slots=slots)
+
+
+
+
+
+
+# Display days for years route
+@app.route('/days_for_years')
+@employer_required
+def days_for_years():
+    if 'user_id' not in session:
+        flash('You must be logged in to view this page.', 'error')
+        return redirect(url_for('login'))
+
+    user_id = session['user_id']
+    years = fetch_all_unique_years(user_id)  # Fetch unique years by user_id
+    return render_template('days_for_years.html', years=years)
+
+# Delete year route
+@app.route('/delete_year/<int:year>', methods=['GET', 'POST'])
+@employer_required
+def delete_year(year):
+    if 'user_id' not in session:
+        flash('You must be logged in to perform this action.', 'error')
+        return redirect(url_for('login'))
+
+    user_id = session['user_id']
+    delete_year_entries(user_id, year)  # Delete year entries by user_id and year
+    flash(f'Year {year} deleted successfully!', 'success')
+    return redirect('/days_for_years')
+
+# Add year route
+@app.route('/add_year', methods=['POST'])
+@employer_required
+def add_year():
+    if 'user_id' not in session:
+        flash('You must be logged in to perform this action.', 'error')
+        return redirect(url_for('login'))
+
+    user_id = session['user_id']
+    new_year = int(request.form.get('new_year'))
+    if new_year:
+        create_user_database(user_id, new_year) # Create user database entry for the new year
+        flash(f'Year {new_year} added successfully!', 'success')
+    else:
+        flash('Invalid input for new year!', 'error')
+    return redirect('/days_for_years')
+
+# Scheduling route
+@app.route('/scheduling')
+@employer_required
+def scheduling():
+    if 'user_id' not in session:
+        flash('You must be logged in to view this page.', 'error')
+        return redirect(url_for('login'))
+
+    user_id = session['user_id']
+    workers = fetch_all(user_id, 'Worker')
+    positions = fetch_all(user_id, 'Position')
+    shifts = fetch_all(user_id, 'Shift')
+    slots = fetch_all(user_id, 'Slot')
+    schedule_events = fetch_all(user_id, 'Schedule') 
+    days = fetch_all(user_id, 'Year_Days')
+
+    # Fetch all unique years for the user
+    unique_years = fetch_all_unique_years(user_id)
+
+    return render_template('scheduling.html', workers=workers, positions=positions, shifts=shifts, slots=slots, days=days, schedule_events=schedule_events, unique_years=unique_years)
+
+# Schedule worker route
+@app.route('/schedule_worker', methods=['POST'])
+@employer_required
+def schedule_worker():
+    if 'user_id' not in session:
+        flash('You must be logged in to perform this action.', 'error')
+        return redirect(url_for('login'))
+
+    user_id = session['user_id']
+    worker_id = request.form.get('worker')
+    position_id = request.form.get('position')
+    shift_id = request.form.get('shift')
+    slot_id = request.form.get('slot')
+    day_id = request.form.get('day')
+    year = request.form.get('year')  # Get the selected year from the form
+
+    print("Received form data:", user_id, worker_id, position_id, shift_id, slot_id, day_id, year)  # Debugging
+
+    # Insert the scheduling information into the database
+    try:
+        add_item('Schedule', user_id=user_id, worker_id=worker_id, position_id=position_id, shift_id=shift_id, slot_id=slot_id, day_id=day_id, year=year)  # Include the year parameter here
+        print("Scheduling successful!")  # Debugging
+        flash('Worker scheduled successfully!', 'success')
+        return redirect(url_for('scheduling'))
+    except Exception as e:
+        print("Error scheduling worker:", e)  # Debugging
+        flash(f'An error occurred: {str(e)}', 'error')
+        return redirect(url_for('scheduling'))
+
+
+
+
+# Edit schedule route
+@app.route('/edit_schedule', methods=['POST'])
+@employer_required
+def edit_schedule():
+    if 'user_id' not in session:
+        flash('You must be logged in to perform this action.', 'error')
+        return redirect(url_for('login'))
+
+    user_id = session['user_id']
+    year = request.form.get('year')
+    week = request.form.get('week')
+
+    # Fetch days based on the provided year and week number
+    days = fetch_days_by_year_and_week(user_id, year, week)
+
+    return render_template('edit_schedule.html', days=days)
+
+
+
+
+
+
+
+
+
+
+# EMPLOYEE SECTION
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    if current_user.role == 'employee':
+        user_id = session.get('user_id')  # Retrieve user ID from the session
+        username = session.get('username')
+        return render_template('dashboard.html', user_id = user_id, username = username)
+    else:
+        flash('You are not authorized to view this page.', 'error')
+        return redirect(url_for('index'))
+
+
+
+
+
 
 if __name__ == '__main__':
     # Create SQLite database file if not exists
@@ -267,7 +683,7 @@ if __name__ == '__main__':
     with app.app_context():
         admin_user = User.query.filter_by(username='admin', role='admin').first()
         if not admin_user:
-            admin_user = User(username='admin', password='34000', role='admin')
+            admin_user = User(username='admin', password='34000', role='admin', email='jsakoman1@gmail.com')
             db.session.add(admin_user)
             db.session.commit()
 

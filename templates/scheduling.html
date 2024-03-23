@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scheduling</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    {% include 'navbar.html' %}
+    <h1>Scheduling</h1>
+    <form action="/schedule_worker" method="post">
+        <label for="worker">Worker:</label>
+        <select name="worker" id="worker">
+            {% for worker in workers %}
+                <option value="{{ worker.worker_id }}">{{ worker.name }} {{ worker.last_name }}</option>
+            {% endfor %}
+        </select><br>
+
+        <label for="position">Position:</label>
+        <select name="position" id="position">
+            {% for position in positions %}
+                <option value="{{ position.position_id }}">{{ position.name }}</option>
+            {% endfor %}
+        </select><br>
+
+        <label for="shift">Shift:</label>
+        <select name="shift" id="shift">
+            {% for shift in shifts %}
+                <option value="{{ shift.shift_id }}">{{ shift.name }}</option>
+            {% endfor %}
+        </select><br>
+
+        <label for="slot">Slot:</label>
+        <select name="slot" id="slot">
+            {% for slot in slots %}
+                <option value="{{ slot.slot_id }}">{{ slot.name }}</option>
+            {% endfor %}
+        </select><br>
+
+        <label for="day">Scheduled Day:</label>
+        <select name="day" id="day">
+            {% for day in days %}
+                <option value="{{ day.day_id }}">{{ day.date }}</option>
+            {% endfor %}
+        </select><br>
+
+        <label for="year">Year:</label>
+        <select name="year" id="year">
+            {% for year in unique_years %}
+                <option value="{{ year }}">{{ year }}</option>
+            {% endfor %}
+        </select><br>
+
+        <input type="submit" value="Schedule">
+    </form>
+
+    <!-- Existing Schedule Events -->
+    <h2>Existing Schedule Events</h2>
+    <ul>
+        {% for event in schedule_events %}
+            <li>
+                Worker: {{ event.worker_id}},
+                Position: {{ event.position_id }},
+                Shift: {{ event.shift_id }},
+                Slot: {{ event.slot_id }},
+                Day: {{ event.day_id}}
+                Year: {{ event.year}}
+            </li>
+        {% endfor %}
+    </ul>
+
+    <!-- Display days grouped by weeks -->
+    {% set weeks = {} %}
+    {% for day in days %}
+        {% set week_identifier = (day.year, day.week_number) %}
+        {% set week_days = weeks.get(week_identifier, []) %}
+        {% set _ = week_days.append(day) %}
+        {% set _ = weeks.update({week_identifier: week_days}) %}
+    {% endfor %}
+
+    {% set worker_names = {} %}
+    {% for worker in workers %}
+        {% set _ = worker_names.update({worker.worker_id: worker.name}) %}
+    {% endfor %}
+
+    {% for (week_identifier, week_days) in weeks.items() %}
+        {% set year = week_identifier[0] %}
+        {% set week_number = week_identifier[1] %}
+        <h2>Week {{ week_number }} (Year {{ year }})</h2>
+        <table border="1">
+            <tr>
+                <th>Position</th>
+                <th>Shift</th>
+                <th>Slot</th>
+                {% for day in week_days %}
+                    <th>{{ day.date }}</th>
+                {% endfor %}
+            </tr>
+            {% for position in positions %}
+                {% for shift in shifts %}
+                    {% for slot in slots %}
+                        <tr>
+                            <td>{{ position.name }}</td>
+                            <td>{{ shift.name }}</td>
+                            <td>{{ slot.name }}</td>
+                            {% for day in week_days %}
+                                {% set worker_id = None %}
+                                {% for event in schedule_events %}
+                                    {% if event.position_id == position.position_id and event.shift_id == shift.shift_id and event.slot_id == slot.slot_id and event.year == year and event.day_id == day.day_id %}
+                                        {% set worker_id = event.worker_id %}
+                                    {% endif %}
+                                {% endfor %}
+                                <td>{{ worker_names.get(worker_id, '') }}</td>
+                            {% endfor %}
+
+                        </tr>
+                    {% endfor %}
+                {% endfor %}
+            {% endfor %}
+        </table>
+    {% endfor %}
+
+    <!-- Display all worker names -->
+<h2>All Worker Names</h2>
+<ul>
+    {% for worker_id, worker_name in worker_names.items() %}
+        <li>Worker ID: {{ worker_id }}, Name: {{ worker_name }}</li>
+    {% endfor %}
+</ul>
+
+
+
+</body>
+</html>

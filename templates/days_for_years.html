@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Years and Days</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    {% include 'navbar.html' %}
+    <h1>Years and Days</h1>
+    <ul>
+        {% for year in years %}
+        <li>{{ year }} - <a href="/delete_year/{{ year }}">Delete</a></li>
+        {% endfor %}
+    </ul>
+    <form action="/add_year" method="post">
+        <label for="new_year">Add New Year:</label>
+        <input type="number" id="new_year" name="new_year" min="1000" max="9999" required>
+        <button type="submit">Add Year</button>
+    </form>
+</body>
+</html>

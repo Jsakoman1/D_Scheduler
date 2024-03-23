@@ -1,28 +1,26 @@
-<!-- employer.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome, Employer!</title>
+    <title>Homepage</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
     {% include 'navbar.html' %}
+    <h1>Welcome to the Scheduler App!</h1>
 
-    <div class="container">
-        <h1>Welcome, Employer {{ current_user.username }}!</h1>
-        <p>Welcome to your employer dashboard. Here, you can manage your workers, view reports, and more.</p>
+    <h2>User Information:</h2>
+    <p>User ID: {{ session['user_id'] }}</p>
+    <p>User Name: {{ session['username'] }}</p>
 
-        <!-- Link to Workers Page -->
-        <a href="{{ url_for('view_workers') }}">View Workers</a>
-
-        <!-- Logout Form -->
-        <form action="/logout" method="post">
-            <button type="submit">Logout</button>
-        </form>
-    </div>
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6301657123996100"
-     crossorigin="anonymous"></script>
+    <h1>Edit Schedule</h1>
+    <form action="/edit_schedule" method="post">
+        <label for="year">Year:</label>
+        <input type="text" id="year" name="year"><br>
+        <label for="week">Week Number:</label>
+        <input type="text" id="week" name="week"><br>
+        <input type="submit" value="Submit">
+    </form>
 </body>
 </html>

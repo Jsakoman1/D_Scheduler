@@ -3,24 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Workers</title>
+    <title>{{ table_name }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
     {% include 'navbar.html' %}
-    <h1>Workers</h1>
-    <ul>
+    <h1>{{ table_name }}</h1>
+    {% if workers %}
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Last Name</th>
+            <th>Email</th>
+            <th>Function</th>
+            <th>Action</th>
+        </tr>
         {% for worker in workers %}
-            <li>{{ worker.name }} - {{ worker.function }}
-                <a href="/edit_worker/{{ worker.id }}">Edit</a>
-                <form action="/delete_worker/{{ worker.id }}" method="post" style="display:inline">
-                    <button type="submit">Delete</button>
-                </form>
-            </li>
+            <tr>
+                <td>{{ worker['worker_id'] }}</td>
+                <td>{{ worker['name'] }}</td>
+                <td>{{ worker['last_name'] }}</td>
+                <td>{{ worker['email'] }}</td>
+                <td>{{ worker['function_name'] }}</td>
+                <td>
+                    <a href="/edit/Worker/{{ worker['worker_id'] }}">Edit</a>
+                    <form action="/delete/Worker/{{ worker['worker_id'] }}" method="post">
+                        <button type="submit">Delete</button>
+                    </form>
+                </td>
+            </tr>
         {% endfor %}
-    </ul>
-    <a href="/add_worker">Add Worker</a>
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6301657123996100"
-     crossorigin="anonymous"></script>
+    </table>
+    {% else %}
+    <p>No data available.</p>
+    {% endif %}
+
+    <h2>Add New Worker</h2>
+    <form action="/add/Worker" method="post">
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name" required><br><br>
+        
+        <label for="last_name">Last Name:</label>
+        <input type="text" id="last_name" name="last_name"><br><br>
+
+        <label for="email">Email:</label>
+        <input type="email" id="email" name="email"><br><br>
+
+
+        <label for="function_id">Function:</label>
+        <select id="function_id" name="function_id">
+            {% for function in functions %}
+                <option value="{{ function['function_id'] }}">{{ function['name'] }}</option>
+            {% endfor %}
+        </select><br><br>
+        
+        <button type="submit">Add Worker</button>
+    </form>
+
 </body>
 </html>

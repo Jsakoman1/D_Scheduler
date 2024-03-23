@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ table_name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    {% include 'navbar.html' %}
+    <h1>{{ table_name }}</h1>
+    {% if slots %}
+    <table border="1">
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Action</th>
+        </tr>
+        {% for slot in slots %}
+            <tr>
+                <td>{{ slot.slot_id }}</td>
+                <td>{{ slot.name }}</td>
+                <td>
+                    <a href="/edit/{{ table_name }}/{{ slot.slot_id }}">Edit</a>
+                    <form action="/delete/{{ table_name }}/{{ slot.slot_id }}" method="post">
+                        <button type="submit">Delete</button>
+                    </form>
+                </td>
+            </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <p>No slots available.</p>
+    {% endif %}
+
+    <h2>Add New Slot</h2>
+    <form action="/add/Slot" method="post">
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name"><br><br>
+        
+        <button type="submit">Add Slot</button>
+    </form>
+
+</body>
+</html>

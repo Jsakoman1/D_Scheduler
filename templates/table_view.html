@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ table_name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    {% include 'navbar.html' %}
+    <h1>{{ table_name }}</h1>
+    <table border="1">
+        <tr>
+            {% for column_name in data[0].keys() %}
+                <th>{{ column_name }}</th>
+            {% endfor %}
+            <th>Action</th>
+        </tr>
+        {% for row in data %}
+            <tr>
+                {% for value in row.values() %}
+                    <td>{{ value }}</td>
+                {% endfor %}
+                <td>
+                    <a href="/edit/{{ table_name }}/{{ row['id_' + table_name.lower()] }}">Edit</a>
+                    <form action="/delete/{{ table_name }}/{{ row['id_' + table_name.lower()] }}" method="post">
+
+
+                        <button type="submit">Delete</button>
+                    </form>
+                </td>
+            </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>

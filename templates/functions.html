@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ table_name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    {% include 'navbar.html' %}
+    <h1>{{ table_name }}</h1>
+    {% if functions %}
+    <table border="1">
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Action</th>
+        </tr>
+        {% for function in functions %}
+            <tr>
+                <td>{{ function.function_id }}</td>
+                <td>{{ function.name }}</td>
+                <td>
+                    <a href="/edit/Function/{{ function.function_id }}">Edit</a>
+                    <form action="/delete/Function/{{ function.function_id }}" method="post">
+                        <button type="submit">Delete</button>
+                    </form>
+                </td>
+            </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <p>No functions available.</p>
+    {% endif %}
+
+    <h2>Add New Function</h2>
+    <form action="/add/Function" method="post">
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name"><br><br>
+        
+        <button type="submit">Add Function</button>
+    </form>
+
+</body>
+</html>

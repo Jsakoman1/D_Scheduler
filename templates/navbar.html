@@ -2,17 +2,19 @@
 <nav>
     <ul>
         <li><a href="/">Home</a></li>
-        {% if current_user.is_authenticated %}
-            {% if current_user.role == 'employer' %}
-                <li><a href="/employer_dashboard">Employer Page</a></li>
-            {% endif %}
-            <li><a href="/logout">Logout</a></li>
-            {% if current_user.role == 'admin' %}
-                <li><a href="/admin">Admin Panel</a></li>
-            {% endif %}
-        {% else %}
-            <li><a href="/login">Login</a></li>
-            <li><a href="/register">Register</a></li>
-        {% endif %}
+        <li><a href="/scheduling">SCHEDULER</a></li>
+        <li><a href="/database_viewer">DATABASE Viewer</a></li>
+        <li><a href="/workers">Workers</a></li>
+        <li><a href="/functions">Functions</a></li>
+        <li><a href="/positions">Positions</a></li>
+        <li><a href="/shifts">Shifts</a></li>
+        <li><a href="/slots">Slots</a></li>
+        <li><a href="/days_for_years">Years</a></li>
+        <li><a href="/login">Login</a></li>
+        <li><a href="/logout">Logout</a></li>
+        <li><a href="/register">Register</a></li>
+        <li><a href="/dashboard">Dashboard</a></li>
+
+        <!-- Add more links as needed -->
     </ul>
 </nav>
