@@ -166,6 +166,23 @@ def fetch_all(user_id, table_name):
     return items
 
 
+def fetch_data_for_viewer(user_id):
+    tables = {
+        'Workers': [row.__dict__ for row in fetch_all(user_id, 'Worker')],
+        'Functions': [row.__dict__ for row in fetch_all(user_id, 'Function')],
+        'Positions': [row.__dict__ for row in fetch_all(user_id, 'Position')],
+        'Shifts': [row.__dict__ for row in fetch_all(user_id, 'Shift')],
+        'Slots': [row.__dict__ for row in fetch_all(user_id, 'Slot')],
+        'Year_Days': [row.__dict__ for row in fetch_all(user_id, 'Year_Days')],
+        'Schedule': [row.__dict__ for row in fetch_all(user_id, 'Schedule')]
+    }
+
+    # Filter out empty tables
+    non_empty_tables = {name: data for name, data in tables.items() if data}
+    any_empty_table = any(len(data) == 0 for data in tables.values())
+
+    return non_empty_tables, any_empty_table
+
 
 
 
@@ -377,28 +394,16 @@ def create_year():
     return redirect('/')
 
 @app.route('/database_viewer')
-@employer_required
+@employer_required  
 def display_database_viewer():
     if 'user_id' not in session:
         flash('You must be logged in to view this page.', 'error')
-        return redirect('/login')
+        return redirect(url_for('login'))
 
     user_id = session['user_id']
-    tables = OrderedDict([
-        ('Workers', fetch_all(user_id, 'Worker')),
-        ('Functions', fetch_all(user_id, 'Function')),
-        ('Positions', fetch_all(user_id, 'Position')),
-        ('Shifts', fetch_all(user_id, 'Shift')),
-        ('Slots', fetch_all(user_id, 'Slot')),
-        ('Year_Days', fetch_all(user_id, 'Year_Days')),
-        ('Schedule', fetch_all(user_id, 'Schedule'))
-    ])
+    tables, any_empty_table = fetch_data_for_viewer(user_id)
 
-    non_empty_tables = {name: data for name, data in tables.items() if data}
-    any_empty_table = any(len(data) == 0 for data in tables.values())
-
-    return render_template('database_viewer.html', tables=non_empty_tables, any_empty_table=any_empty_table)
-
+    return render_template('database_viewer.html', tables=tables, any_empty_table=any_empty_table)
 
 
 

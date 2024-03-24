@@ -5,36 +5,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Database Viewer</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+
 </head>
 <body>
     {% include 'navbar.html' %}
     <h1>Database Viewer</h1>
 
     {% for table_name, data in tables.items() %}
-        <h2>{{ table_name }}</h2>
-        {% if data %}
-            <table class="table">
-                <thead>
+    <h2>{{ table_name }}</h2>
+    {% if data %}
+        <table class="table">
+            <thead>
+                <tr>
+                    {% for key in data[0] if key != '_sa_instance_state' %}
+                        <th>{{ key }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in data %}
                     <tr>
-                        {% for column_name in data[0].keys() %}
-                            <th>{{ column_name }}</th>
+                        {% for key, value in row.items() if key != '_sa_instance_state' %}
+                            <td>{{ value }}</td>
                         {% endfor %}
                     </tr>
-                </thead>
-                <tbody>
-                    {% for row in data %}
-                        <tr>
-                            {% for value in row.values() %}
-                                <td>{{ value }}</td>
-                            {% endfor %}
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        {% else %}
-            <p>No data available for {{ table_name }}</p>
-        {% endif %}
-    {% endfor %}
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No data available for {{ table_name }}</p>
+    {% endif %}
+{% endfor %}
 
     {% if any_empty_table %}
         <p>There are empty tables in the database.</p>

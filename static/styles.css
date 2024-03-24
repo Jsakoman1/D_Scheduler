@@ -195,3 +195,22 @@ input[type="submit"]:focus {
 input[type="submit"]:hover {
     animation: pulse 0.5s infinite; /* Apply animation on hover */
 }
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+th {
+    background-color: #f2f2f2;
+}
+
+tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
