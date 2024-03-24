@@ -8,38 +8,54 @@
 </head>
 <body>
     {% include 'navbar.html' %}
-    <h1>{{ table_name }}</h1>
-    {% if functions %}
-    <table border="1">
-        <tr>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Action</th>
-        </tr>
-        {% for function in functions %}
-            <tr>
-                <td>{{ function.function_id }}</td>
-                <td>{{ function.name }}</td>
-                <td>
-                    <a href="/edit/Function/{{ function.function_id }}">Edit</a>
-                    <form action="/delete/Function/{{ function.function_id }}" method="post">
-                        <button type="submit">Delete</button>
-                    </form>
-                </td>
-            </tr>
-        {% endfor %}
-    </table>
-    {% else %}
-    <p>No functions available.</p>
-    {% endif %}
-
-    <h2>Add New Function</h2>
-    <form action="/add/Function" method="post">
-        <label for="name">Name:</label>
-        <input type="text" id="name" name="name"><br><br>
+    <div class="container">
+        <h1>{{ table_name }}</h1>
         
-        <button type="submit">Add Function</button>
-    </form>
+        <div class="existing-items-section">
+            {% if functions %}
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Edit</th>
+                            <th>Delete</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for function in functions %}
+                            <tr>
+                                <td>{{ function.function_id }}</td>
+                                <td>{{ function.name }}</td>
+                                <td>
+                                    <a href="/edit/Function/{{ function.function_id }}" class="action-link">Edit</a>
+                                </td>
+                                <td>
+                                    <form action="/delete/Function/{{ function.function_id }}" method="post">
+                                        <button type="submit" class="delete-button">Delete</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>No functions available.</p>
+            {% endif %}
+        </div>
 
+        <div class="add-item-section">
+            <h2>Add New Function</h2>
+            <form action="/add/Function" method="post" class="add-form">
+                <label for="name">Name:</label>
+                <input type="text" id="name" name="name">
+                
+                <button type="submit" class="add-button">Add Function</button>
+            </form>
+        </div>
+    </div>
+    <div class="footer">
+        &copy; 2024 Sakoman. All rights reserved.
+    </div>
 </body>
 </html>

@@ -577,6 +577,12 @@ def add_year():
         flash('Invalid input for new year!', 'error')
     return redirect('/days_for_years')
 
+
+
+
+
+
+
 # Scheduling route
 @app.route('/scheduling')
 @employer_required
@@ -596,7 +602,15 @@ def scheduling():
     # Fetch all unique years for the user
     unique_years = fetch_all_unique_years(user_id)
 
-    return render_template('scheduling.html', workers=workers, positions=positions, shifts=shifts, slots=slots, days=days, schedule_events=schedule_events, unique_years=unique_years)
+    # Create a dictionary of worker names
+    worker_names = {worker.worker_id: f"{worker.name} {worker.last_name}" for worker in workers}
+
+    return render_template('scheduling.html', workers=workers, positions=positions, shifts=shifts, slots=slots, days=days, schedule_events=schedule_events, unique_years=unique_years, worker_names=worker_names)
+
+
+
+
+
 
 # Schedule worker route
 @app.route('/schedule_worker', methods=['POST'])

@@ -8,16 +8,18 @@
 </head>
 <body>
     {% include 'navbar.html' %}
-    <h1>Years and Days</h1>
-    <ul>
-        {% for year in years %}
-        <li>{{ year }} - <a href="/delete_year/{{ year }}">Delete</a></li>
-        {% endfor %}
-    </ul>
-    <form action="/add_year" method="post">
-        <label for="new_year">Add New Year:</label>
-        <input type="number" id="new_year" name="new_year" min="1000" max="9999" required>
-        <button type="submit">Add Year</button>
-    </form>
+    <div class="container">
+        <h1>Years and Days</h1>
+        <ul>
+            {% for year in years %}
+            <li>{{ year }} - <a href="/delete_year/{{ year }}">Delete</a></li>
+            {% endfor %}
+        </ul>
+        <form action="/add_year" method="post">
+            <label for="new_year">Add New Year:</label>
+            <input type="number" id="new_year" name="new_year" min="1000" max="9999" required>
+            <button type="submit">Add Year</button>
+        </form>
+    </div>
 </body>
 </html>

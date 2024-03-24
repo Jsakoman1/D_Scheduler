@@ -2,19 +2,31 @@
 <nav>
     <ul>
         <li><a href="/">Home</a></li>
+        
+        {% if current_user.is_authenticated and current_user.role == 'employer' %}
+        <!-- Display these links only if the user is authenticated and has the 'employer' role -->
         <li><a href="/scheduling">SCHEDULER</a></li>
-        <li><a href="/database_viewer">DATABASE Viewer</a></li>
         <li><a href="/workers">Workers</a></li>
         <li><a href="/functions">Functions</a></li>
         <li><a href="/positions">Positions</a></li>
         <li><a href="/shifts">Shifts</a></li>
         <li><a href="/slots">Slots</a></li>
         <li><a href="/days_for_years">Years</a></li>
-        <li><a href="/login">Login</a></li>
-        <li><a href="/logout">Logout</a></li>
-        <li><a href="/register">Register</a></li>
-        <li><a href="/dashboard">Dashboard</a></li>
+        <li><a href="/database_viewer">DATABASE Viewer</a></li>
+        {% endif %}
 
-        <!-- Add more links as needed -->
+        {% if current_user.is_authenticated and current_user.role == 'employee' %}
+        <li><a href="/dashboard">Dashboard</a></li>
+        {% endif %}
+
+        
+        {% if not current_user.is_authenticated %}
+        <!-- Display login and register links if the user is not logged in -->
+        <li><a href="/login">Login</a></li>
+        <li><a href="/register">Register</a></li>
+        {% else %}
+        <!-- Display logout link if the user is logged in -->
+        <li><a href="/logout">Logout</a></li>
+        {% endif %}
     </ul>
 </nav>

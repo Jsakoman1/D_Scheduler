@@ -8,16 +8,18 @@
 </head>
 <body>
     {% include 'navbar.html' %}
-    <h2>User Registration</h2>
-    <form action="/register" method="POST">
-        <label for="username">Username:</label><br>
-        <input type="text" id="username" name="username" required><br>
-        <label for="email">Email:</label><br>
-        <input type="email" id="email" name="email" required><br>
-        <label for="password">Password:</label><br>
-        <input type="password" id="password" name="password" required><br>
-        <button type="submit">Register</button>
-    </form>
-    <a href="/login">Already have an account? Login here</a>
+    <div class="container">
+        <h2>User Registration</h2>
+        <form action="/register" method="POST">
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" required>
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" required>
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required>
+            <button type="submit">Register</button>
+        </form>
+        <p>Already have an account? <a href="/login" class="action-link">Login here</a></p>
+    </div>
 </body>
 </html>
