@@ -6,63 +6,40 @@
     <title>Scheduling</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
-        /* Additional styles for scheduling page */
-        /* Form styles */
-        form {
+        /* Additional CSS styles */
+        .form-group {
+            display: flex;
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            width: 150px; /* Adjust width as needed */
+            margin-right: 10px;
+            text-align: right;
+        }
+
+        .form-group select,
+        .form-group input[type="submit"] {
+            flex: 1;
+        }
+        .schedule-events-container {
             margin-bottom: 20px;
         }
         
-        label {
-            display: block;
-            margin-bottom: 5px;
-        }
-        
-        select, input[type="submit"] {
-            padding: 8px;
-            margin-bottom: 10px;
-            width: calc(100% - 20px);
-        }
-        
-        /* Existing schedule events styles */
-        h2 {
-            margin-top: 40px;
-            font-size: 1.5rem;
-        }
-        
-        ul {
+        .schedule-events-container ul {
             list-style-type: none;
             padding: 0;
         }
         
-        li {
+        .schedule-events-container li {
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 10px;
             margin-bottom: 10px;
         }
         
-        /* Table styles */
-        table {
-            width: 100%;
-            margin-top: 20px;
-            border-collapse: collapse;
-        }
-        
-        th, td {
-            padding: 10px;
-            border: 1px solid #ccc;
-            text-align: left;
-        }
-        
-        th {
-            background-color: #f2f2f2;
-        }
-        
-        /* Responsive styles */
-        @media (min-width: 768px) {
-            form {
-                width: 50%;
-                margin: 0 auto 40px;
-            }
-            
-
+        .schedule-events-container li:last-child {
+            margin-bottom: 0;
         }
     </style>
 </head>
@@ -70,53 +47,70 @@
     {% include 'navbar.html' %}
     <div class="container">
         <h1>Scheduling</h1>
+        <div class="form-container">
         <form action="/schedule_worker" method="post">
-            <label for="worker">Worker:</label>
-            <select name="worker" id="worker">
-                {% for worker in workers %}
-                    <option value="{{ worker.worker_id }}">{{ worker.name }} {{ worker.last_name }}</option>
-                {% endfor %}
-            </select>
+            <div class="form-group">
+                <label for="worker">Worker:</label>
+                <select name="worker" id="worker">
+                    {% for worker in workers %}
+                        <option value="{{ worker.worker_id }}">{{ worker.name }} {{ worker.last_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
 
-            <label for="position">Position:</label>
-            <select name="position" id="position">
-                {% for position in positions %}
-                    <option value="{{ position.position_id }}">{{ position.name }}</option>
-                {% endfor %}
-            </select>
+            <div class="form-group">
+                <label for="position">Position:</label>
+                <select name="position" id="position">
+                    {% for position in positions %}
+                        <option value="{{ position.position_id }}">{{ position.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
 
-            <label for="shift">Shift:</label>
-            <select name="shift" id="shift">
-                {% for shift in shifts %}
-                    <option value="{{ shift.shift_id }}">{{ shift.name }}</option>
-                {% endfor %}
-            </select>
+            <div class="form-group">
+                <label for="shift">Shift:</label>
+                <select name="shift" id="shift">
+                    {% for shift in shifts %}
+                        <option value="{{ shift.shift_id }}">{{ shift.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
 
-            <label for="slot">Slot:</label>
-            <select name="slot" id="slot">
-                {% for slot in slots %}
-                    <option value="{{ slot.slot_id }}">{{ slot.name }}</option>
-                {% endfor %}
-            </select>
+            <div class="form-group">
+                <label for="slot">Slot:</label>
+                <select name="slot" id="slot">
+                    {% for slot in slots %}
+                        <option value="{{ slot.slot_id }}">{{ slot.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
 
-            <label for="day">Scheduled Day:</label>
-            <select name="day" id="day">
-                {% for day in days %}
-                    <option value="{{ day.day_id }}">{{ day.date }}</option>
-                {% endfor %}
-            </select>
+            <div class="form-group">
+                <label for="day">Scheduled Day:</label>
+                <select name="day" id="day">
+                    {% for day in days %}
+                        <option value="{{ day.day_id }}">{{ day.date }}</option>
+                    {% endfor %}
+                </select>
+            </div>
 
-            <label for="year">Year:</label>
-            <select name="year" id="year">
-                {% for year in unique_years %}
-                    <option value="{{ year }}">{{ year }}</option>
-                {% endfor %}
-            </select>
+            <div class="form-group">
+                <label for="year">Year:</label>
+                <select name="year" id="year">
+                    {% for year in unique_years %}
+                        <option value="{{ year }}">{{ year }}</option>
+                    {% endfor %}
+                </select>
+            </div>
 
-            <input type="submit" value="Schedule">
+            <div class="form-group">
+                <input type="submit" value="Schedule">
+            </div>
         </form>
+    </div>
 
         <!-- Existing Schedule Events -->
+        <div class="schedule-events-container">
         <h2>Existing Schedule Events</h2>
         <ul>
             {% for event in schedule_events %}
@@ -130,6 +124,7 @@
                 </li>
             {% endfor %}
         </ul>
+    </div>
 
         <!-- Display days grouped by weeks -->
         {% set weeks = {} %}
@@ -158,16 +153,18 @@
                         <th>{{ day.date }}</th>
                     {% endfor %}
                 </tr>
+                
                 {% for position in positions %}
                     {% for shift in shifts %}
                         {% for slot in slots %}
+                        
                             <tr>
                                 <td>{{ position.name }}</td>
                                 <td>{{ shift.name }}</td>
                                 <td>{{ slot.name }}</td>
                                 {% for day in week_days %}
                                     {% set event = schedule_events | selectattr('year', 'equalto', year) | selectattr('day_id', 'equalto', day.day_id) | selectattr('position_id', 'equalto', position.position_id) | selectattr('shift_id', 'equalto', shift.shift_id) | selectattr('slot_id', 'equalto', slot.slot_id) | first %}
-                                    <td>{{ event.worker.name if event else '-' }}</td>
+                                    <td>{{ event.worker.name if event else '' }}</td>
                                 {% endfor %}
                             </tr>
                         {% endfor %}

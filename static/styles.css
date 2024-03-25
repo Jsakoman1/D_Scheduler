@@ -1,8 +1,5 @@
-/* styles.css */
-
-
 /* Reset default browser styles */
-body, h1, h2, p, ul, li, button, input, select {
+* {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
@@ -19,20 +16,16 @@ body {
 nav {
     background-color: #007bff;
     padding: 10px 0;
-    transition: background-color 0.3s ease;
 }
 
 nav ul {
     list-style-type: none;
     text-align: center;
-    margin: 0;
-    padding: 0;
 }
 
 nav ul li {
-    display: inline;
+    display: inline-block;
     margin: 0 10px;
-    transition: transform 0.3s ease;
 }
 
 nav ul li a {
@@ -54,49 +47,42 @@ nav ul li:hover {
 
 /* Container styles */
 .container {
-    max-width: 800px;
     margin: 20px auto;
     padding: 20px;
     background-color: #fff;
     border-radius: 10px;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    max-width: 800px;
 }
 
-.container h1 {
-    font-size: 2.5rem;
-    margin-bottom: 20px;
-    text-align: center;
-}
-
+.container h1,
+.container h2,
 .container p {
-    font-size: 1.2rem;
-    text-align: center;
-    margin-bottom: 20px;
-}
-
-.container h2 {
-    font-size: 2rem;
-    margin-bottom: 20px;
+    font-size: 16px;
     text-align: center;
 }
 
 .container form {
     display: flex;
     flex-direction: column;
+    align-items: center;
 }
 
 .container label {
     margin-bottom: 8px;
 }
 
-.container input {
-    padding: 10px;
+.container input,
+.container select {
+    width: 300px;
+    padding: 5px;
     margin-bottom: 20px;
     border-radius: 5px;
     border: 1px solid #ccc;
 }
 
-.container button {
+.container button,
+input[type="submit"] {
     padding: 10px 20px;
     background-color: #007bff;
     color: #fff;
@@ -106,7 +92,8 @@ nav ul li:hover {
     transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-.container button:hover {
+.container button:hover,
+input[type="submit"]:hover {
     background-color: #0056b3;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
@@ -135,48 +122,10 @@ nav ul li:hover {
     color: #0056b3;
 }
 
-/* Update button styles */
-button {
-    padding: 10px 20px;
-    background-color: #007bff;
-    color: #fff;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background-color 0.3s ease, box-shadow 0.3s ease;
-}
-
-button:hover {
-    background-color: #0056b3;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
 /* Add some space between sections */
 .add-item-section,
 .existing-items-section {
     margin-bottom: 40px;
-}
-
-
-/* Update submit button styles */
-input[type="submit"] {
-    padding: 10px 20px;
-    background-color: #007bff;
-    color: #fff;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background-color 0.3s ease, box-shadow 0.3s ease;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Add shadow */
-}
-
-input[type="submit"]:hover {
-    background-color: #0056b3;
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2); /* Increase shadow on hover */
-}
-
-input[type="submit"]:focus {
-    outline: none; /* Remove outline on focus */
 }
 
 /* Add animation effect */
@@ -196,14 +145,17 @@ input[type="submit"]:hover {
     animation: pulse 0.5s infinite; /* Apply animation on hover */
 }
 
+/* Table styles */
 table {
     width: 100%;
     border-collapse: collapse;
     margin-bottom: 20px;
 }
+
 th, td {
+    font-size: 14px;
     border: 1px solid #ddd;
-    padding: 8px;
+    padding: 10px;
     text-align: left;
 }
 
@@ -213,4 +165,29 @@ th {
 
 tr:nth-child(even) {
     background-color: #f2f2f2;
+}
+
+/* Update button styles */
+.update-button {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.update-button:hover {
+    background-color: #0056b3;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Additional CSS styles */
+.form-container {
+    border: 2px solid #ccc;
+    padding: 20px;
+    margin-bottom: 20px;
+    border-radius: 10px;
 }

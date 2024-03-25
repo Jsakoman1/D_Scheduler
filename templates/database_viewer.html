@@ -5,40 +5,45 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Database Viewer</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-
 </head>
 <body>
     {% include 'navbar.html' %}
-    <h1>Database Viewer</h1>
+    <div class="container">
+        <h1>Database Viewer</h1>
+        {% for table_name, data in tables.items() %}
+            <div class="table-container">
+                <h2>{{ table_name }}</h2>
+                {% if data %}
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                {% for key in data[0] if key != '_sa_instance_state' %}
+                                    <th>{{ key }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in data %}
+                                <tr>
+                                    {% for key, value in row.items() if key != '_sa_instance_state' %}
+                                        <td>{{ value }}</td>
+                                    {% endfor %}
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p>No data available for {{ table_name }}</p>
+                {% endif %}
+            </div>
+        {% endfor %}
 
-    {% for table_name, data in tables.items() %}
-    <h2>{{ table_name }}</h2>
-    {% if data %}
-        <table class="table">
-            <thead>
-                <tr>
-                    {% for key in data[0] if key != '_sa_instance_state' %}
-                        <th>{{ key }}</th>
-                    {% endfor %}
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in data %}
-                    <tr>
-                        {% for key, value in row.items() if key != '_sa_instance_state' %}
-                            <td>{{ value }}</td>
-                        {% endfor %}
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    {% else %}
-        <p>No data available for {{ table_name }}</p>
-    {% endif %}
-{% endfor %}
-
-    {% if any_empty_table %}
-        <p>There are empty tables in the database.</p>
-    {% endif %}
+        {% if any_empty_table %}
+            <p>There are empty tables in the database.</p>
+        {% endif %}
+    </div>
+    <div class="footer">
+        &copy; 2024 Sakoman. All rights reserved.
+    </div>
 </body>
 </html>

@@ -1,5 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
-from flask import Flask, render_template, request, redirect, flash, url_for, session
+from flask import Flask, render_template, request, redirect, flash, url_for, session, jsonify
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from functools import wraps
 import hashlib
@@ -229,7 +229,10 @@ def create_user_database(user_id, year=None):
         db.session.commit()
 
 
-
+def get_date_for_day(year, week, day):
+    iso_week_date_str = f'{year}-W{week}-{day}'
+    start_date = datetime.datetime.strptime(iso_week_date_str, "%G-W%V-%u")
+    return start_date.strftime("%Y-%m-%d")
 
 def get_week_number(year, month, day):
     date_obj = datetime.date(year, month, day)
@@ -252,6 +255,54 @@ def delete_year_entries(user_id, year):
 def fetch_days_by_year_and_week(user_id, year, week):
     days = Year_Days.query.filter_by(user_id=user_id, year=year, week_number=week).all()
     return [day.__dict__ for day in days]
+
+def fetch_schedule_data_for_week(user_id, week):
+    # Get the current year
+    current_year = datetime.datetime.now().year
+    
+    # Calculate the start and end dates of the week based on the year and week number
+    start_date = datetime.datetime.strptime(f'{current_year}-W{week}-1', "%Y-W%W-%w")
+    end_date = start_date + datetime.timedelta(days=6)
+    
+    # Query the database for schedule data within the specified date range
+    schedule_data = Schedule.query.filter(
+        Schedule.user_id == user_id,
+        Schedule.year == current_year,
+        Schedule.day_id >= start_date.timetuple().tm_yday,  # Day of year for start date
+        Schedule.day_id <= end_date.timetuple().tm_yday     # Day of year for end date
+    ).all()
+    
+    # Format the fetched data for sending to the frontend
+    formatted_data = []
+    for entry in schedule_data:
+        formatted_entry = {
+            'worker_id': entry.worker_id,
+            'position_id': entry.position_id,
+            'shift_id': entry.shift_id,
+            'slot_id': entry.slot_id,
+            'day_id': entry.day_id - start_date.timetuple().tm_yday + 1,  # Adjust day ID relative to start of the week
+            'year': entry.year
+            # Add more fields as needed
+        }
+        formatted_data.append(formatted_entry)
+    
+    return formatted_data
+
+
+
+def get_schedule_entry_for_day(schedule_data, day):
+    for entry in schedule_data:
+        if entry['day_id'] == day:
+            return entry
+    return None
+
+
+
+
+
+
+
+
 
 
 
@@ -485,7 +536,15 @@ def display_workers():
     user_id = session['user_id']
     workers = fetch_all(user_id, 'Worker')
     functions = fetch_all(user_id, 'Function')
+
+    function_names = {function.function_id: function.name for function in functions}
+    for worker in workers:
+        worker.function_name = function_names.get(worker.function_id, 'N/A')
+
     return render_template('workers.html', workers=workers, functions=functions)
+
+
+
 
 # Display functions route
 @app.route('/functions')
@@ -588,6 +647,9 @@ def add_year():
 
 
 
+
+
+
 # Scheduling route
 @app.route('/scheduling')
 @employer_required
@@ -647,6 +709,26 @@ def schedule_worker():
         return redirect(url_for('scheduling'))
 
 
+@app.route('/schedule_view')
+@employer_required
+def schedule_view():
+    if 'user_id' not in session:
+        flash('You must be logged in to view this page.', 'error')
+        return redirect(url_for('login'))
+
+    # Get the current week number
+    current_week = datetime.datetime.now().isocalendar()[1]
+    user_id = session['user_id']
+
+    # Calculate the start date of the current week
+    today = datetime.datetime.now()
+    start_of_week = today - datetime.timedelta(days=today.weekday())
+
+    # Fetch schedule data for the current week
+    schedule_data = fetch_schedule_data_for_week(user_id, current_week)
+
+    # Pass the first day of the current week and datetime module to the template
+    return render_template('schedule_view.html', current_week=current_week, start_of_week=start_of_week, schedule_data=schedule_data, get_schedule_entry_for_day=get_schedule_entry_for_day, datetime=datetime)
 
 
 # Edit schedule route
