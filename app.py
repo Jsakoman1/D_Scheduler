@@ -106,7 +106,7 @@ class Year_Days(db.Model):
     date = db.Column(db.Date, nullable=False)
     day_of_week = db.Column(db.Integer, nullable=False)
     week_number = db.Column(db.String(20), nullable=False)
-
+    schedules = db.relationship('Schedule', backref='year_day', lazy=True)
 
 class Schedule(db.Model):
     schedule_id = db.Column(db.Integer, primary_key=True)
@@ -117,12 +117,12 @@ class Schedule(db.Model):
     slot_id = db.Column(db.Integer, db.ForeignKey('slot.slot_id'), nullable=False)
     day_id = db.Column(db.Integer, db.ForeignKey('year_days.day_id'), nullable=False)
     year = db.Column(db.Integer, nullable=False)
+    week_number = db.Column(db.String(20), nullable=False)
 
     worker = db.relationship('Worker', backref='schedules')
     position = db.relationship('Position', backref='schedules')
     shift = db.relationship('Shift', backref='schedules')
     slot = db.relationship('Slot', backref='schedules')
-    year_day = db.relationship('Year_Days', backref='schedules')
 
 
 
@@ -153,10 +153,6 @@ def authenticate_user(username, password):
     return user
 
 
-def get_user_role(user_id):
-    user = User.query.get(user_id)
-    return user.role if user else None
-
 
 def fetch_all(user_id, table_name):
     if table_name not in ['Worker', 'Function', 'Position', 'Shift', 'Slot', 'Year_Days', 'Schedule']:
@@ -164,6 +160,8 @@ def fetch_all(user_id, table_name):
     table_class = globals()[table_name]
     items = table_class.query.filter_by(user_id=user_id).all()
     return items
+
+
 
 
 def fetch_data_for_viewer(user_id):
@@ -182,8 +180,6 @@ def fetch_data_for_viewer(user_id):
     any_empty_table = any(len(data) == 0 for data in tables.values())
 
     return non_empty_tables, any_empty_table
-
-
 
 
 
@@ -229,19 +225,12 @@ def create_user_database(user_id, year=None):
         db.session.commit()
 
 
-def get_date_for_day(year, week, day):
-    iso_week_date_str = f'{year}-W{week}-{day}'
-    start_date = datetime.datetime.strptime(iso_week_date_str, "%G-W%V-%u")
-    return start_date.strftime("%Y-%m-%d")
 
 def get_week_number(year, month, day):
     date_obj = datetime.date(year, month, day)
     week_number = date_obj.isocalendar()[1]
     return week_number
 
-def fetch_by_id_days(user_id, day_id):
-    day = Year_Days.query.filter_by(id_day=day_id, user_id=user_id).first()
-    return day.__dict__ if day else None
 
 def fetch_all_unique_years(user_id):
     # Use distinct() without arguments
@@ -256,45 +245,8 @@ def fetch_days_by_year_and_week(user_id, year, week):
     days = Year_Days.query.filter_by(user_id=user_id, year=year, week_number=week).all()
     return [day.__dict__ for day in days]
 
-def fetch_schedule_data_for_week(user_id, week):
-    # Get the current year
-    current_year = datetime.datetime.now().year
-    
-    # Calculate the start and end dates of the week based on the year and week number
-    start_date = datetime.datetime.strptime(f'{current_year}-W{week}-1', "%Y-W%W-%w")
-    end_date = start_date + datetime.timedelta(days=6)
-    
-    # Query the database for schedule data within the specified date range
-    schedule_data = Schedule.query.filter(
-        Schedule.user_id == user_id,
-        Schedule.year == current_year,
-        Schedule.day_id >= start_date.timetuple().tm_yday,  # Day of year for start date
-        Schedule.day_id <= end_date.timetuple().tm_yday     # Day of year for end date
-    ).all()
-    
-    # Format the fetched data for sending to the frontend
-    formatted_data = []
-    for entry in schedule_data:
-        formatted_entry = {
-            'worker_id': entry.worker_id,
-            'position_id': entry.position_id,
-            'shift_id': entry.shift_id,
-            'slot_id': entry.slot_id,
-            'day_id': entry.day_id - start_date.timetuple().tm_yday + 1,  # Adjust day ID relative to start of the week
-            'year': entry.year
-            # Add more fields as needed
-        }
-        formatted_data.append(formatted_entry)
-    
-    return formatted_data
 
 
-
-def get_schedule_entry_for_day(schedule_data, day):
-    for entry in schedule_data:
-        if entry['day_id'] == day:
-            return entry
-    return None
 
 
 
@@ -678,8 +630,6 @@ def scheduling():
 
 
 
-
-# Schedule worker route
 @app.route('/schedule_worker', methods=['POST'])
 @employer_required
 def schedule_worker():
@@ -695,11 +645,19 @@ def schedule_worker():
     day_id = request.form.get('day')
     year = request.form.get('year')  # Get the selected year from the form
 
-    print("Received form data:", user_id, worker_id, position_id, shift_id, slot_id, day_id, year)  # Debugging
+    # Retrieve week number from Year_Days table
+    year_day = Year_Days.query.filter_by(user_id=user_id, year=year, day_of_year=day_id).first()
+    if year_day:
+        week_number = year_day.week_number
+    else:
+        # If the week number is not found, calculate it
+        week_number = get_week_number(int(year), 1, int(day_id))
+
+    print("Received form data:", user_id, worker_id, position_id, shift_id, slot_id, day_id, year, week_number)  # Debugging
 
     # Insert the scheduling information into the database
     try:
-        add_item('Schedule', user_id=user_id, worker_id=worker_id, position_id=position_id, shift_id=shift_id, slot_id=slot_id, day_id=day_id, year=year)  # Include the year parameter here
+        add_item('Schedule', user_id=user_id, worker_id=worker_id, position_id=position_id, shift_id=shift_id, slot_id=slot_id, day_id=day_id, year=year, week_number=week_number)  # Include the week number parameter here
         print("Scheduling successful!")  # Debugging
         flash('Worker scheduled successfully!', 'success')
         return redirect(url_for('scheduling'))
@@ -709,44 +667,79 @@ def schedule_worker():
         return redirect(url_for('scheduling'))
 
 
-@app.route('/schedule_view')
+
+# Scheduling route
+@app.route('/schedule')
 @employer_required
-def schedule_view():
+def schedule():
     if 'user_id' not in session:
         flash('You must be logged in to view this page.', 'error')
         return redirect(url_for('login'))
 
-    # Get the current week number
-    current_week = datetime.datetime.now().isocalendar()[1]
     user_id = session['user_id']
+    
+    # Fetch all schedules grouped by week_number
+    grouped_schedules = {}
+    schedules = Schedule.query.filter_by(user_id=user_id).all()
+    for schedule in schedules:
+        week_number = schedule.week_number
+        if week_number not in grouped_schedules:
+            grouped_schedules[week_number] = []
+        grouped_schedules[week_number].append(schedule)
 
-    # Calculate the start date of the current week
-    today = datetime.datetime.now()
-    start_of_week = today - datetime.timedelta(days=today.weekday())
-
-    # Fetch schedule data for the current week
-    schedule_data = fetch_schedule_data_for_week(user_id, current_week)
-
-    # Pass the first day of the current week and datetime module to the template
-    return render_template('schedule_view.html', current_week=current_week, start_of_week=start_of_week, schedule_data=schedule_data, get_schedule_entry_for_day=get_schedule_entry_for_day, datetime=datetime)
+    # Pass the grouped schedule data to the template
+    return render_template('schedule.html', grouped_schedules=grouped_schedules)
 
 
-# Edit schedule route
-@app.route('/edit_schedule', methods=['POST'])
+
+
+
+
+
+@app.route('/preferences', methods=['GET', 'POST'])
 @employer_required
-def edit_schedule():
-    if 'user_id' not in session:
-        flash('You must be logged in to perform this action.', 'error')
-        return redirect(url_for('login'))
+def preferences():
+    if request.method == 'POST':
 
-    user_id = session['user_id']
-    year = request.form.get('year')
-    week = request.form.get('week')
+        position_name = request.form.get('position_name')
+        new_position = Position(user_id=session['user_id'], name=position_name)
+        db.session.add(new_position)
+        db.session.commit()
 
-    # Fetch days based on the provided year and week number
-    days = fetch_days_by_year_and_week(user_id, year, week)
+        return redirect(url_for('preferences'))
 
-    return render_template('edit_schedule.html', days=days)
+    # Fetch existing positions, shifts, and slots from the database
+    positions = Position.query.filter_by(user_id=session['user_id']).all()
+    shifts = Shift.query.filter_by(user_id=session['user_id']).all()
+    slots = Slot.query.filter_by(user_id=session['user_id']).all()
+
+    return render_template('preferences.html', positions=positions, shifts=shifts, slots=slots)
+
+
+# Schedule Template Route - Generate schedule entries based on preferences
+@app.route('/schedule_template', methods=['POST'])
+@employer_required
+def schedule_template():
+    week_number = request.form.get('week_number')
+    current_year = datetime.now().year  # Assuming you want to use the current year
+    for day in range(1, 8):
+        positions_needed = int(request.form.get(f'positions_day_{day}'))
+        shifts_needed = int(request.form.get(f'shifts_day_{day}'))
+        slots_needed = int(request.form.get(f'slots_day_{day}'))
+        for _ in range(positions_needed):
+            for _ in range(shifts_needed):
+                for _ in range(slots_needed):
+                    # Add schedule entry to database
+                    new_schedule = Schedule(user_id=session['user_id'], day_id=day, week_number=week_number, year=current_year)
+                    db.session.add(new_schedule)
+    db.session.commit()
+    flash('Schedule template created successfully!', 'success')
+    return redirect(url_for('scheduling'))  # Redirect to the scheduling page
+
+
+
+
+
 
 
 

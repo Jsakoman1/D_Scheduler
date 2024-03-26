@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schedule</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    {% include 'navbar.html' %}
+    <h1>Schedule</h1>
+    <div>
+        {% for week_number, schedules_in_week in grouped_schedules.items() %}
+        <h2>Week {{ week_number }}</h2>
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>Schedule ID</th>
+                    <th>User ID</th>
+                    <th>Worker ID</th>
+                    <th>Position ID</th>
+                    <th>Shift ID</th>
+                    <th>Slot ID</th>
+                    <th>Day ID</th>
+                    <th>Year</th>
+                    <th>Week Number</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for schedule in schedules_in_week %}
+                <tr>
+                    <td>{{ schedule.schedule_id }}</td>
+                    <td>{{ schedule.user_id }}</td>
+                    <td>{{ schedule.worker_id }}</td>
+                    <td>{{ schedule.position_id }}</td>
+                    <td>{{ schedule.shift_id }}</td>
+                    <td>{{ schedule.slot_id }}</td>
+                    <td>{{ schedule.day_id }}</td>
+                    <td>{{ schedule.year }}</td>
+                    <td>{{ schedule.week_number }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endfor %}
+    </div>
+</body>
+</html>
