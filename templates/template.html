@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Template Configuration</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .position {
+            margin-bottom: 20px;
+        }
+        .shift {
+            margin-left: 20px;
+            margin-bottom: 10px;
+        }
+        .slots {
+            margin-left: 20px;
+        }
+    </style>
+</head>
+<body>
+    {% include 'navbar.html' %}
+    <h1>Template Configuration</h1>
+    <form id="templateForm" method="post" action="{{ url_for('template') }}">
+        <div id="positionsContainer">
+            {% for position in positions %}
+            <div class="position" data-position-id="{{ position.position_id }}">
+                <h3>{{ position.name }}</h3>
+                <input type="checkbox" name="positions[{{ position.position_id }}][include]" value="{{ position.position_id }}" {% if position.position_id in selected_combinations|map(attribute=0) %} checked {% endif %}>
+        
+                <div class="shifts">
+                    {% for shift in shifts %}
+                    <div class="shift">
+                        <input type="checkbox" name="positions[{{ position.position_id }}][shifts][{{ shift.shift_id }}][include]" value="{{ shift.shift_id }}" {% if shift_has_data(existing_templates, position.position_id, shift.shift_id) %} checked {% endif %}>
+                        {{ shift.name }}
+                        
+                        <div class="slots">
+                            {% for slot in slots %}
+                            <input type="checkbox" name="positions[{{ position.position_id }}][shifts][{{ shift.shift_id }}][slots][{{ slot.slot_id }}]" value="{{ slot.slot_id }}" {% if (position.position_id, shift.shift_id, slot.slot_id) in selected_combinations %} checked {% endif %}>
+                            {{ slot.name }}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <button type="submit">Save Template</button>
+    </form>
+
+    <h2>Existing Templates</h2>
+    <ul>
+        {% for template in existing_templates %}
+        <li>Position: {{ template.position.name }}, Shift: {{ template.shift.name }}, Slot: {{ template.slot.name }}</li>
+        {% endfor %}
+    </ul>
+</body>
+</html>

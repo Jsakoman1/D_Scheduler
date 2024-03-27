@@ -4,7 +4,7 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 from functools import wraps
 import hashlib
 import datetime
-
+import stripe
 from datetime import timedelta
 from collections import OrderedDict
 import os
@@ -13,6 +13,9 @@ from sqlalchemy.orm import relationship
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
+
+stripe.api_key = 'your_stripe_api_key'  # Replace this with your Stripe API key
+
 
 
 login_manager = LoginManager()
@@ -123,6 +126,26 @@ class Schedule(db.Model):
     position = db.relationship('Position', backref='schedules')
     shift = db.relationship('Shift', backref='schedules')
     slot = db.relationship('Slot', backref='schedules')
+
+class Template(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    position_id = db.Column(db.Integer, db.ForeignKey('position.position_id'), nullable=False)
+    shift_id = db.Column(db.Integer, db.ForeignKey('shift.shift_id'), nullable=False)
+    slot_id = db.Column(db.Integer, db.ForeignKey('slot.slot_id'), nullable=False)
+
+    # Relationships
+    user = db.relationship('User', backref=db.backref('templates', lazy=True))
+    position = db.relationship('Position', backref='templates')
+    shift = db.relationship('Shift', backref='templates')
+    slot = db.relationship('Slot', backref='templates')
+
+    def __init__(self, user_id, position_id, shift_id, slot_id):
+        self.user_id = user_id
+        self.position_id = position_id
+        self.shift_id = shift_id
+        self.slot_id = slot_id
+
 
 
 
@@ -629,7 +652,6 @@ def scheduling():
 
 
 
-
 @app.route('/schedule_worker', methods=['POST'])
 @employer_required
 def schedule_worker():
@@ -642,29 +664,25 @@ def schedule_worker():
     position_id = request.form.get('position')
     shift_id = request.form.get('shift')
     slot_id = request.form.get('slot')
-    day_id = request.form.get('day')
-    year = request.form.get('year')  # Get the selected year from the form
-
-    # Retrieve week number from Year_Days table
-    year_day = Year_Days.query.filter_by(user_id=user_id, year=year, day_of_year=day_id).first()
-    if year_day:
-        week_number = year_day.week_number
-    else:
-        # If the week number is not found, calculate it
-        week_number = get_week_number(int(year), 1, int(day_id))
-
-    print("Received form data:", user_id, worker_id, position_id, shift_id, slot_id, day_id, year, week_number)  # Debugging
-
-    # Insert the scheduling information into the database
+    day_id = request.form.get('day')  # Directly use day_id
+    
+    # Find the corresponding Year_Days entry
+    year_day = Year_Days.query.get(day_id)
+    if not year_day or year_day.user_id != user_id:
+        flash('Invalid day selected. Please check your inputs.', 'error')
+        return redirect(url_for('scheduling'))
+    
+    # No need to retrieve or validate the year separately
+    week_number = year_day.week_number
+    
     try:
-        add_item('Schedule', user_id=user_id, worker_id=worker_id, position_id=position_id, shift_id=shift_id, slot_id=slot_id, day_id=day_id, year=year, week_number=week_number)  # Include the week number parameter here
-        print("Scheduling successful!")  # Debugging
+        add_item('Schedule', user_id=user_id, worker_id=worker_id, position_id=position_id, shift_id=shift_id, slot_id=slot_id, day_id=day_id, year=year_day.year, week_number=week_number)
         flash('Worker scheduled successfully!', 'success')
-        return redirect(url_for('scheduling'))
     except Exception as e:
-        print("Error scheduling worker:", e)  # Debugging
         flash(f'An error occurred: {str(e)}', 'error')
-        return redirect(url_for('scheduling'))
+    
+    return redirect(url_for('scheduling'))
+
 
 
 
@@ -691,29 +709,54 @@ def schedule():
     return render_template('schedule.html', grouped_schedules=grouped_schedules)
 
 
+def shift_has_data(existing_templates, position_id, shift_id):
+    for template in existing_templates:
+        if (template.position_id == position_id) and (template.shift_id == shift_id):
+            return True
+    return False
 
 
-
-
-
-@app.route('/preferences', methods=['GET', 'POST'])
+@app.route('/template', methods=['GET', 'POST'])
+@login_required
 @employer_required
-def preferences():
+def template():
+    user_id = current_user.id
+    positions = Position.query.all()
+    shifts = Shift.query.all()
+    slots = Slot.query.all()
+
+    
+    existing_templates = Template.query.filter_by(user_id=user_id).all()
+    # Convert the query results into a more easily accessible structure
+    # This structure will help to check if a specific combination of position, shift, and slot is selected
+    selected_combinations = {(template.position_id, template.shift_id, template.slot_id) for template in existing_templates}
+    
+    print(selected_combinations)  # Debugging: print selected_combinations to see its contents
+
     if request.method == 'POST':
+        # Clear existing templates for this user
+        Template.query.filter_by(user_id=user_id).delete()
 
-        position_name = request.form.get('position_name')
-        new_position = Position(user_id=session['user_id'], name=position_name)
-        db.session.add(new_position)
+        # Process form data and create new Template entries as needed
+        for position in positions:
+            if request.form.get(f'positions[{position.position_id}][include]'):
+                for shift in shifts:
+                    shift_checkbox_name = f'positions[{position.position_id}][shifts][{shift.shift_id}][include]'
+                    if request.form.get(shift_checkbox_name):
+                        for slot in slots:
+                            slot_checkbox_name = f'positions[{position.position_id}][shifts][{shift.shift_id}][slots][{slot.slot_id}]'
+                            if request.form.get(slot_checkbox_name):
+                                new_template = Template(user_id=user_id, position_id=position.position_id, shift_id=shift.shift_id, slot_id=slot.slot_id)
+                                db.session.add(new_template)
+
         db.session.commit()
+        flash('Template saved successfully.')
+        return redirect(url_for('template'))
 
-        return redirect(url_for('preferences'))
+    return render_template('template.html', positions=positions, shifts=shifts, slots=slots, selected_combinations=selected_combinations, existing_templates=existing_templates, shift_has_data=shift_has_data)
 
-    # Fetch existing positions, shifts, and slots from the database
-    positions = Position.query.filter_by(user_id=session['user_id']).all()
-    shifts = Shift.query.filter_by(user_id=session['user_id']).all()
-    slots = Slot.query.filter_by(user_id=session['user_id']).all()
 
-    return render_template('preferences.html', positions=positions, shifts=shifts, slots=slots)
+
 
 
 # Schedule Template Route - Generate schedule entries based on preferences
