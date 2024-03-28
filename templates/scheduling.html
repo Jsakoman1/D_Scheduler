@@ -112,60 +112,15 @@
                     Position: {{ event.position_id }},
                     Shift: {{ event.shift_id }},
                     Slot: {{ event.slot_id }},
-                    Day: {{ event.day_id}}
+                    Day: {{ event.day_id}},
                     Year: {{ event.year}}
                 </li>
             {% endfor %}
         </ul>
     </div>
 
-        <!-- Display days grouped by weeks -->
-        {% set weeks = {} %}
-        {% for day in days %}
-            {% set week_identifier = (day.year, day.week_number) %}
-            {% set week_days = weeks.get(week_identifier, []) %}
-            {% set _ = week_days.append(day) %}
-            {% set _ = weeks.update({week_identifier: week_days}) %}
-        {% endfor %}
+      
 
-        {% set worker_names = {} %}
-        {% for worker in workers %}
-            {% set _ = worker_names.update({worker.worker_id: worker.name}) %}
-        {% endfor %}
-
-        {% for (week_identifier, week_days) in weeks.items() %}
-            {% set year = week_identifier[0] %}
-            {% set week_number = week_identifier[1] %}
-            <h2>Week {{ week_number }} (Year {{ year }})</h2>
-            <table>
-                <tr>
-                    <th>Position</th>
-                    <th>Shift</th>
-                    <th>Slot</th>
-                    {% for day in week_days %}
-                        <th>{{ day.date }}</th>
-                    {% endfor %}
-                </tr>
-                
-                {% for position in positions %}
-                    {% for shift in shifts %}
-                        {% for slot in slots %}
-                        
-                            <tr>
-                                <td>{{ position.name }}</td>
-                                <td>{{ shift.name }}</td>
-                                <td>{{ slot.name }}</td>
-                                {% for day in week_days %}
-                                    {% set event = schedule_events | selectattr('year', 'equalto', year) | selectattr('day_id', 'equalto', day.day_id) | selectattr('position_id', 'equalto', position.position_id) | selectattr('shift_id', 'equalto', shift.shift_id) | selectattr('slot_id', 'equalto', slot.slot_id) | first %}
-                                    <td>{{ event.worker.name if event else '' }}</td>
-                                {% endfor %}
-                            </tr>
-                        {% endfor %}
-                    {% endfor %}
-                {% endfor %}
-            </table>
-        {% endfor %}
-    </div>
     <div class="footer">
         &copy; 2024 Sakoman. All rights reserved.
     </div>

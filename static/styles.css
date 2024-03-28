@@ -191,3 +191,98 @@ tr:nth-child(even) {
     margin-bottom: 20px;
     border-radius: 10px;
 }
+
+/* Enhanced week-navigation styles */
+.week-navigation {
+    margin: 20px 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+}
+
+.week-navigation button {
+    background-color: #0056b3; /* Darker blue for better contrast */
+    color: #ffffff;
+    font-weight: bold;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.week-navigation button:hover {
+    background-color: #003d7a; /* Even darker on hover */
+}
+
+/* Schedule creation prompt style adjustments */
+.no-schedules-alert {
+    text-align: center;
+    margin: 20px 0;
+    padding: 15px;
+    background-color: #e7f1ff; /* Light blue background for alert */
+    border-left: 5px solid #007bff; /* Blue border on the left for emphasis */
+    border-radius: 5px;
+}
+
+
+
+/* Enhancements to the form-container for clarity and spacing */
+.form-container {
+    background-color: #f8f9fa; /* Slightly different background to distinguish the section */
+    margin-top: 30px;
+    padding: 25px;
+    border: 1px solid #dee2e6; /* Bootstrap's light grey */
+}
+
+/* Style for the manage schedule and create schedule sections */
+.schedule-management-section {
+    margin-top: 40px; /* Additional spacing from the top elements */
+}
+
+/* Styling for table to enhance readability */
+table {
+    background-color: #ffffff; /* Ensure background is white for readability */
+    overflow-x: auto; /* Allow horizontal scrolling for smaller screens */
+}
+
+th {
+    background-color: #007bff; /* Consistent blue header */
+    color: #ffffff; /* White text for contrast */
+}
+
+td {
+    font-size: 14px; /* Ensure font size is legible */
+    padding: 12px; /* Slightly larger padding for spacing */
+}
+
+/* Responsive table containers for better mobile viewing */
+.table-responsive {
+    overflow-x: auto; /* Allows table to scroll on small devices */
+}
+
+@media (max-width: 768px) {
+    .container, .form-container {
+        padding: 15px; /* Reduce padding on smaller screens for more space */
+        width: auto; /* Allow the container to adapt to screen size */
+        margin: 10px; /* Reduce margin for more screen real estate */
+    }
+
+    .week-navigation button, .delete-button, .update-button {
+        padding: 8px 10px; /* Smaller buttons on mobile for space efficiency */
+    }
+}
+/* Delete button enhancements for visual distinction */
+.delete-button {
+    background-color: #dc3545 !important; /* Bootstrap's danger color */
+    color: #fff !important; /* White text color for better readability */
+    padding: 10px 20px !important;
+    border: none !important;
+    border-radius: 5px !important;
+    cursor: pointer !important;
+}
+
+.delete-button:hover {
+    background-color: #c82333 !important; /* Darker shade on hover */
+}

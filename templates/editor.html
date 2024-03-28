@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>EDITOR</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+
+</head>
+<body>
+    {% include 'navbar.html' %}
+
+    <div class="container">
+        <h1>Editor</h1>
+
+        <div class="week-navigation">
+            <button onclick="navigateWeek('prev')">← Previous Week</button>
+            <span><strong>Week {{ week_number }} of {{ year }}</strong></span>
+            <button onclick="navigateWeek('next')">Next Week →</button>
+        </div>
+        
+        {% if no_schedules %}
+            <div class="no-schedules-alert">
+                <p>No schedules for Week {{ week_number }} of {{ year }}. Create a new one?</p>
+                <form method="post" action="{{ url_for('editor') }}">
+                    <input type="hidden" name="year" value="{{ year }}">
+                    <input type="hidden" name="week_number" value="{{ week_number }}">
+                    <button type="submit" class="update-button">Create Schedule for This Week</button>
+                </form>
+            </div>
+        {% else %}
+            <div>
+                <h2>Manage Schedule for Week {{ week_number }} of {{ year }}</h2>
+                <form action="{{ url_for('delete_week_schedule') }}" method="post" onsubmit="return confirm('Are you sure you want to delete the schedule for this week?');">
+                    <input type="hidden" name="year" value="{{ year }}">
+                    <input type="hidden" name="week_number" value="{{ week_number }}">
+                    <button type="submit" class="delete-button">Delete Schedule for This Week</button>
+                </form>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Position</th>
+                        <th>Shift</th>
+                        <th>Slot</th>
+                        <th>Monday</th>
+                        <th>Tuesday</th>
+                        <th>Wednesday</th>
+                        <th>Thursday</th>
+                        <th>Friday</th>
+                        <th>Saturday</th>
+                        <th>Sunday</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for schedule in organized_schedules.values() %}
+                    <tr>
+                        <td data-position>{{ schedule['position'] }}</td>
+                        <td data-shift>{{ schedule['shift'] }}</td>
+                        <td data-slot>{{ schedule['slot'] }}</td>
+                        {% for worker_name in schedule['workers_by_day'] %}
+                            <td data-day data-year>{{ worker_name }}</td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+        </div>
+
+    <script>
+        function navigateWeek(direction) {
+            const currentWeek = parseInt("{{ week_number }}", 10);
+            const currentYear = parseInt("{{ year }}", 10);
+            let newWeek = currentWeek;
+            let newYear = currentYear;
+        
+            if (direction === 'next') {
+                newWeek = currentWeek + 1;
+            } else if (direction === 'prev') {
+                newWeek = currentWeek - 1;
+            }
+        
+            // Simple week/year overflow handling (you might need more complex logic)
+            if (newWeek > 52) {
+                newWeek = 1;
+                newYear += 1;
+            } else if (newWeek < 1) {
+                newWeek = 52;
+                newYear -= 1;
+            }
+        
+            window.location.href = `?week=${newWeek}&year=${newYear}`;
+        }
+
+        function saveChanges() {
+            // Trigger form submission
+            document.querySelector('form').submit();
+        }
+    </script>
+
+<script>
+
+document.addEventListener('DOMContentLoaded', function() {
+    const scheduleCells = document.querySelectorAll('td[data-day]');
+
+    scheduleCells.forEach(cell => {
+        cell.addEventListener('click', function() {
+            // Prevent multiple dropdowns
+            if (this.querySelector('select')) return;
+
+            const positionId = this.closest('tr').querySelector('td[data-position]').getAttribute('data-position');
+            const shiftId = this.closest('tr').querySelector('td[data-shift]').getAttribute('data-shift');
+            const slotId = this.closest('tr').querySelector('td[data-slot]').getAttribute('data-slot');
+            const dayId = this.getAttribute('data-day'); // Correctly extract day ID
+
+            // Log the dayId to console for debugging
+            console.log('dayId:', dayId);
+
+            fetch('/get_workers')
+                .then(response => response.json())
+                .then(workers => {
+                    const dropdown = document.createElement('select');
+                    dropdown.innerHTML = `<option value="">Select Worker</option>` + workers.map(worker => `<option value="${worker.id}">${worker.name}</option>`).join('');
+                    this.innerHTML = '';
+                    this.appendChild(dropdown);
+
+                    dropdown.addEventListener('change', function() {
+                        const workerId = this.value;
+                        if(!workerId) return; // Check if a worker is selected
+                        
+                        // Send the data to Flask backend
+                        fetch('/schedule_worker', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                positionId,
+                                shiftId,
+                                slotId,
+                                dayId,
+                                workerId,
+                            }),
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if(data.error) {
+                                alert(data.error);
+                            } else {
+                                cell.textContent = workers.find(w => w.id === workerId).name; // Update cell text with worker name
+                            }
+                        })
+                        .catch(error => console.error('Error:', error));
+                    });
+                });
+        });
+    });
+});
+
+
+    </script>
+    
+    
+    
+
+
+
+</body>
+</html>

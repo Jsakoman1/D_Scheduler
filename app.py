@@ -114,7 +114,7 @@ class Year_Days(db.Model):
 class Schedule(db.Model):
     schedule_id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, nullable=False)
-    worker_id = db.Column(db.Integer, db.ForeignKey('worker.worker_id'), nullable=False)
+    worker_id = db.Column(db.Integer, db.ForeignKey('worker.worker_id'), nullable=True)
     position_id = db.Column(db.Integer, db.ForeignKey('position.position_id'), nullable=False)
     shift_id = db.Column(db.Integer, db.ForeignKey('shift.shift_id'), nullable=False)
     slot_id = db.Column(db.Integer, db.ForeignKey('slot.slot_id'), nullable=False)
@@ -229,26 +229,6 @@ def delete_item(table_name, user_id, item_id):
         db.session.commit()
 
 
-def create_user_database(user_id, year=None):
-    if year is not None:
-        year_int = int(year)
-        # Populate Year_Days table with the days of the given year for the specific user
-        total_days = 366 if year_int % 4 == 0 and (year_int % 100 != 0 or year_int % 400 == 0) else 365
-        day_data = []
-        current_date = datetime.date(year_int, 1, 1)  # Start from January 1st of the given year
-        for i in range(1, total_days + 1):
-            day_of_week = current_date.weekday() + 1  # Adjusting to 1-based index
-            week_year = str(current_date.isocalendar()[0])[2:]  # Get the 2-digit year
-            week_number = str(current_date.isocalendar()[1]).zfill(2)  # Get the 2-digit week and zero-pad if necessary
-            week_number = week_year + week_number  # Concatenate year and week number
-            day_data.append(Year_Days(user_id=user_id, year=year_int, day_of_year=i, date=current_date, day_of_week=day_of_week, week_number=week_number))
-            current_date += datetime.timedelta(days=1)  # Move to the next day
-
-        db.session.add_all(day_data)
-        db.session.commit()
-
-
-
 def get_week_number(year, month, day):
     date_obj = datetime.date(year, month, day)
     week_number = date_obj.isocalendar()[1]
@@ -269,6 +249,30 @@ def fetch_days_by_year_and_week(user_id, year, week):
     return [day.__dict__ for day in days]
 
 
+
+def ensure_year_days_exist(user_id, year):
+    # Check if the year already has entries
+    year_exists = db.session.query(Year_Days).filter_by(user_id=user_id, year=year).first()
+    if year_exists:
+        return  # Exit if the year's days already exist
+
+    # Generate days for the year if they do not exist
+    is_leap_year = year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
+    total_days = 366 if is_leap_year else 365
+    for day_of_year in range(1, total_days + 1):
+        date = datetime.date(year, 1, 1) + datetime.timedelta(days=day_of_year - 1)
+        iso_year, iso_week, iso_day = date.isocalendar()
+        week_number = f"{str(iso_year)[-2:]}{str(iso_week).zfill(2)}"  # Use ISO year and week number
+        new_day = Year_Days(
+            user_id=user_id,
+            year=year,
+            day_of_year=day_of_year,
+            date=date,
+            day_of_week=iso_day,  # ISO day of the week (1=Monday, 7=Sunday)
+            week_number=week_number
+        )
+        db.session.add(new_day)
+    db.session.commit()
 
 
 
@@ -406,18 +410,6 @@ def index():
         return render_template('index.html', username=None, role=None)
 
 
-@app.route('/create_year', methods=['POST'])
-@employer_required
-def create_year():
-    if 'user_id' not in session:
-        flash('You must be logged in to perform this action.', 'error')
-        return redirect('/login')
-
-    year = int(request.form.get('year'))
-    user_id = session['user_id']
-    create_user_database(user_id, year)  # Pass user_id instead of username
-    flash(f'Year {year} and its days created successfully!', 'success')
-    return redirect('/')
 
 @app.route('/database_viewer')
 @employer_required  
@@ -570,61 +562,6 @@ def display_slots():
     return render_template('slots.html', slots=slots)
 
 
-
-
-
-
-# Display days for years route
-@app.route('/days_for_years')
-@employer_required
-def days_for_years():
-    if 'user_id' not in session:
-        flash('You must be logged in to view this page.', 'error')
-        return redirect(url_for('login'))
-
-    user_id = session['user_id']
-    years = fetch_all_unique_years(user_id)  # Fetch unique years by user_id
-    return render_template('days_for_years.html', years=years)
-
-# Delete year route
-@app.route('/delete_year/<int:year>', methods=['GET', 'POST'])
-@employer_required
-def delete_year(year):
-    if 'user_id' not in session:
-        flash('You must be logged in to perform this action.', 'error')
-        return redirect(url_for('login'))
-
-    user_id = session['user_id']
-    delete_year_entries(user_id, year)  # Delete year entries by user_id and year
-    flash(f'Year {year} deleted successfully!', 'success')
-    return redirect('/days_for_years')
-
-# Add year route
-@app.route('/add_year', methods=['POST'])
-@employer_required
-def add_year():
-    if 'user_id' not in session:
-        flash('You must be logged in to perform this action.', 'error')
-        return redirect(url_for('login'))
-
-    user_id = session['user_id']
-    new_year = int(request.form.get('new_year'))
-    if new_year:
-        create_user_database(user_id, new_year) # Create user database entry for the new year
-        flash(f'Year {new_year} added successfully!', 'success')
-    else:
-        flash('Invalid input for new year!', 'error')
-    return redirect('/days_for_years')
-
-
-
-
-
-
-
-
-
-
 # Scheduling route
 @app.route('/scheduling')
 @employer_required
@@ -651,37 +588,6 @@ def scheduling():
 
 
 
-
-@app.route('/schedule_worker', methods=['POST'])
-@employer_required
-def schedule_worker():
-    if 'user_id' not in session:
-        flash('You must be logged in to perform this action.', 'error')
-        return redirect(url_for('login'))
-
-    user_id = session['user_id']
-    worker_id = request.form.get('worker')
-    position_id = request.form.get('position')
-    shift_id = request.form.get('shift')
-    slot_id = request.form.get('slot')
-    day_id = request.form.get('day')  # Directly use day_id
-    
-    # Find the corresponding Year_Days entry
-    year_day = Year_Days.query.get(day_id)
-    if not year_day or year_day.user_id != user_id:
-        flash('Invalid day selected. Please check your inputs.', 'error')
-        return redirect(url_for('scheduling'))
-    
-    # No need to retrieve or validate the year separately
-    week_number = year_day.week_number
-    
-    try:
-        add_item('Schedule', user_id=user_id, worker_id=worker_id, position_id=position_id, shift_id=shift_id, slot_id=slot_id, day_id=day_id, year=year_day.year, week_number=week_number)
-        flash('Worker scheduled successfully!', 'success')
-    except Exception as e:
-        flash(f'An error occurred: {str(e)}', 'error')
-    
-    return redirect(url_for('scheduling'))
 
 
 
@@ -759,25 +665,95 @@ def template():
 
 
 
-# Schedule Template Route - Generate schedule entries based on preferences
-@app.route('/schedule_template', methods=['POST'])
-@employer_required
+
+@app.route('/schedule_template', methods=['GET', 'POST'])
+@employer_required  # If you have an employer required decorator, apply it here
 def schedule_template():
-    week_number = request.form.get('week_number')
-    current_year = datetime.now().year  # Assuming you want to use the current year
-    for day in range(1, 8):
-        positions_needed = int(request.form.get(f'positions_day_{day}'))
-        shifts_needed = int(request.form.get(f'shifts_day_{day}'))
-        slots_needed = int(request.form.get(f'slots_day_{day}'))
-        for _ in range(positions_needed):
-            for _ in range(shifts_needed):
-                for _ in range(slots_needed):
-                    # Add schedule entry to database
-                    new_schedule = Schedule(user_id=session['user_id'], day_id=day, week_number=week_number, year=current_year)
-                    db.session.add(new_schedule)
-    db.session.commit()
-    flash('Schedule template created successfully!', 'success')
-    return redirect(url_for('scheduling'))  # Redirect to the scheduling page
+    user_id = session['user_id']
+
+    # Handle POST request
+    if request.method == 'POST':
+        input_week_number = request.form.get('week_number', type=int)
+        year = request.form.get('year', type=int)
+
+        # Ensure that days exist for the selected week and year
+        ensure_year_days_exist(user_id, year)
+
+        # Format the week number as YYWW (e.g., 2201)
+        formatted_week_number = f"{str(year)[-2:]}{str(input_week_number).zfill(2)}"
+        
+        # Query days for the selected week
+        days_in_week = Year_Days.query.filter_by(user_id=user_id, year=year, week_number=formatted_week_number).all()
+
+        if not days_in_week:
+            flash('No days found for the selected week and year.', 'error')
+            return redirect(url_for('scheduling'))  # Redirect to scheduling route
+
+        # Query templates for the user
+        templates = Template.query.filter_by(user_id=user_id).all()
+
+        # Create schedule entries for each day and template combination
+        for day in days_in_week:
+            for template in templates:
+                new_schedule = Schedule(
+                    user_id=user_id,
+                    position_id=template.position_id,
+                    shift_id=template.shift_id,
+                    slot_id=template.slot_id,
+                    day_id=day.day_id,
+                    year=year,
+                    week_number=formatted_week_number,
+                    worker_id=None  # Worker ID will be updated later
+                )
+                db.session.add(new_schedule)
+        
+        # Commit changes to the database
+        db.session.commit()
+        
+        # Flash success message
+        flash('Schedule template for the week created successfully!', 'success')
+        
+        # Redirect to prevent form resubmission
+        return redirect(url_for('schedule_template'))
+
+    # Handle GET request or any other method
+    else:
+        # Query distinct scheduled weeks for the user
+        scheduled_weeks = db.session.query(Schedule.week_number).filter(Schedule.user_id == user_id).distinct().all()
+        scheduled_weeks = [week[0] for week in scheduled_weeks]  # Flatten the list
+        
+        # Query positions, shifts, and slots
+        positions = Position.query.all()
+        shifts = Shift.query.all()
+        slots = Slot.query.all()
+
+        # Group schedules by week for easy access in the template
+        grouped_schedules = {}
+        for week in scheduled_weeks:
+            schedules = Schedule.query.filter_by(user_id=user_id, week_number=week).all()
+            grouped_schedules[week] = schedules
+
+        
+        # Preparing data
+        organized_schedules = {}
+        for week in scheduled_weeks:
+            # Initialize a dictionary to hold schedule data organized by position, shift, and slot
+            schedule_matrix = {}
+
+            week_schedules = Schedule.query.filter_by(user_id=user_id, week_number=week).all()
+            for schedule in week_schedules:
+                key = (schedule.position_id, schedule.shift_id, schedule.slot_id)
+                if key not in schedule_matrix:
+                    schedule_matrix[key] = {"position": schedule.position.name, "shift": schedule.shift.name, "slot": schedule.slot.name, "workers_by_day": [""]*7}
+                
+                day_index = schedule.year_day.day_of_week - 1  # Assuming day_of_week is 1-7 (Monday-Sunday)
+                schedule_matrix[key]["workers_by_day"][day_index] = schedule.worker.name if schedule.worker else ""
+            
+            organized_schedules[week] = schedule_matrix.values()
+
+        # Render the template with scheduled_weeks, positions, shifts, slots, and grouped_schedules
+        return render_template('schedule_template.html', scheduled_weeks=scheduled_weeks, positions=positions, shifts=shifts, slots=slots, grouped_schedules=grouped_schedules, organized_schedules=organized_schedules)
+
 
 
 
@@ -807,6 +783,162 @@ def dashboard():
 
 
 
+
+
+@app.route('/editor', methods=['GET', 'POST'])
+@employer_required
+def editor():
+    user_id = session['user_id']
+
+    if request.method == 'POST':
+        input_week_number = request.form.get('week_number', type=int)
+        year = request.form.get('year', type=int)
+
+        ensure_year_days_exist(user_id, year)
+
+        formatted_week_number = f"{str(year)[-2:]}{str(input_week_number).zfill(2)}"
+        
+        days_in_week = Year_Days.query.filter_by(user_id=user_id, year=year, week_number=formatted_week_number).all()
+
+        if not days_in_week:
+            flash('No days found for the selected week and year.', 'error')
+            return redirect(url_for('editor')) 
+
+        templates = Template.query.filter_by(user_id=user_id).all()
+
+        for day in days_in_week:
+            for template in templates:
+                new_schedule = Schedule(
+                    user_id=user_id,
+                    position_id=template.position_id,
+                    shift_id=template.shift_id,
+                    slot_id=template.slot_id,
+                    day_id=day.day_id,
+                    year=year,
+                    week_number=formatted_week_number,
+                    worker_id=None 
+                )
+                db.session.add(new_schedule)
+        
+        db.session.commit()
+        
+        flash('Schedule template for the week created successfully!', 'success')
+        
+        return redirect(url_for('editor'))
+
+    else:
+         # Calculate the current week number and year
+        from datetime import datetime, date
+
+        today = date.today()
+        current_week_number = today.isocalendar()[1]
+        current_year = today.year
+
+        # Get the week number and year from query parameters or use current
+        week_number = request.args.get('week', default=current_week_number, type=int)
+        year = request.args.get('year', default=current_year, type=int)
+
+        # Format week number as YYWW
+        week_str = f"{str(year)[-2:]}{str(week_number).zfill(2)}"
+
+        # Try to find schedules for the specified week and year
+        week_schedules = Schedule.query.filter_by(user_id=user_id, week_number=week_str).all()
+
+        no_schedules = len(week_schedules) == 0
+        if no_schedules:
+            flash('No schedules for the selected week and year. Do you want to create a new one?', 'info')
+
+        organized_schedules = {}
+        for schedule in week_schedules:
+            key = (schedule.position_id, schedule.shift_id, schedule.slot_id)
+            if key not in organized_schedules:
+                organized_schedules[key] = {
+                    "position": schedule.position.name,
+                    "shift": schedule.shift.name,
+                    "slot": schedule.slot.name,
+                    "workers_by_day": [""]*7
+                }
+            # Assuming day_of_week is 1-7 (Monday-Sunday)
+            day_index = schedule.year_day.day_of_week - 1
+            # Assigning worker name to the corresponding day
+            organized_schedules[key]["workers_by_day"][day_index] = schedule.worker.name if schedule.worker else ""
+
+        return render_template('editor.html', week_number=week_number, year=year, organized_schedules=organized_schedules, no_schedules=no_schedules)
+
+
+
+
+
+@app.route('/delete_week_schedule', methods=['POST'])
+@employer_required
+def delete_week_schedule():
+    user_id = session['user_id']
+    year = request.form.get('year', type=int)
+    week_number = request.form.get('week_number', type=int)
+
+    # Combine year and week_number to match your storage format
+    combined_week_number = f"{year % 100:02d}{week_number:02d}"
+
+    # Delete all schedule entries for the given week and the current user
+    Schedule.query.filter_by(user_id=user_id, week_number=combined_week_number).delete()
+    db.session.commit()
+    
+    flash(f'Schedules for week {combined_week_number} deleted successfully.')
+    return redirect(url_for('editor'))
+
+
+@app.route('/get_workers')
+def get_workers():
+    user_id = session.get('user_id')  # Assuming user_id is stored in the session
+    workers = fetch_all(user_id, 'Worker')
+    # Convert workers to a list of dictionaries for JSON serialization
+    workers_data = [{'id': worker.worker_id, 'name': worker.name} for worker in workers]
+    return jsonify(workers_data)
+
+
+
+
+
+@app.route('/schedule_worker', methods=['POST'])
+@employer_required
+def schedule_worker():
+    if 'user_id' not in session:
+        return jsonify({'error': 'You must be logged in to perform this action.'}), 403
+
+    user_id = session['user_id']
+    data = request.get_json()
+
+    worker_id = data.get('workerId')
+    position_id = data.get('positionId')
+    shift_id = data.get('shiftId')
+    slot_id = data.get('slotId')
+    day_id = data.get('dayId')
+
+    # Find the corresponding Year_Days entry
+    year_day = Year_Days.query.get(day_id)
+    if not year_day or year_day.user_id != user_id:
+        return jsonify({'error': 'Invalid day selected. Please check your inputs.'}), 400
+
+    # No need to retrieve or validate the year separately
+    week_number = year_day.week_number
+
+    try:
+        # Add the schedule item to the database
+        new_schedule = Schedule(
+            user_id=user_id,
+            worker_id=worker_id,
+            position_id=position_id,
+            shift_id=shift_id,
+            slot_id=slot_id,
+            day_id=day_id,
+            year=year_day.year,
+            week_number=week_number
+        )
+        db.session.add(new_schedule)
+        db.session.commit()
+        return jsonify({'message': 'Worker scheduled successfully!'}), 200
+    except Exception as e:
+        return jsonify({'error': f'An error occurred: {str(e)}'}), 500
 
 
 
