@@ -9,10 +9,12 @@ from datetime import timedelta
 from collections import OrderedDict
 import os
 from sqlalchemy.orm import relationship
+from sqlalchemy.orm import joinedload
 
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
+app.jinja_env.globals.update(zip=zip)
 
 stripe.api_key = 'your_stripe_api_key'  # Replace this with your Stripe API key
 
@@ -783,8 +785,6 @@ def dashboard():
 
 
 
-
-
 @app.route('/editor', methods=['GET', 'POST'])
 @employer_required
 def editor():
@@ -833,39 +833,47 @@ def editor():
         today = date.today()
         current_week_number = today.isocalendar()[1]
         current_year = today.year
-
-        # Get the week number and year from query parameters or use current
         week_number = request.args.get('week', default=current_week_number, type=int)
         year = request.args.get('year', default=current_year, type=int)
-
-        # Format week number as YYWW
         week_str = f"{str(year)[-2:]}{str(week_number).zfill(2)}"
 
-        # Try to find schedules for the specified week and year
-        week_schedules = Schedule.query.filter_by(user_id=user_id, week_number=week_str).all()
+        all_workers = Worker.query.filter_by(user_id=user_id).all()
 
-        no_schedules = len(week_schedules) == 0
-        if no_schedules:
-            flash('No schedules for the selected week and year. Do you want to create a new one?', 'info')
+        # Convert workers to a format easy to use in the template, e.g., a list of tuples (id, name)
+        workers_list = [(worker.worker_id, worker.name) for worker in all_workers]
 
-        organized_schedules = {}
+        # Fetch schedules with related models preloaded to reduce database queries
+        week_schedules = Schedule.query.options(
+            joinedload(Schedule.position),
+            joinedload(Schedule.shift),
+            joinedload(Schedule.slot),
+            joinedload(Schedule.worker),
+            joinedload(Schedule.year_day)
+        ).filter_by(user_id=user_id, week_number=week_str).all()
+
+        # Aggregate schedules by position, shift, and slot
+        aggregated_schedules = {}
         for schedule in week_schedules:
             key = (schedule.position_id, schedule.shift_id, schedule.slot_id)
-            if key not in organized_schedules:
-                organized_schedules[key] = {
-                    "position": schedule.position.name,
-                    "shift": schedule.shift.name,
-                    "slot": schedule.slot.name,
-                    "workers_by_day": [""]*7
+            if key not in aggregated_schedules:
+                aggregated_schedules[key] = {
+                    "position_name": schedule.position.name,
+                    "shift_name": schedule.shift.name,
+                    "slot_name": schedule.slot.name,
+                    "workers_by_day": [None] * 7,
+                    "day_ids": [None] * 7, # Initialize with None for 7 days,
+                    "position_id": schedule.position_id,  # Add position ID
+                    "shift_id": schedule.shift_id,  # Add shift ID
+                    "slot_id": schedule.slot_id,  # Add slot ID
                 }
-            # Assuming day_of_week is 1-7 (Monday-Sunday)
-            day_index = schedule.year_day.day_of_week - 1
-            # Assigning worker name to the corresponding day
-            organized_schedules[key]["workers_by_day"][day_index] = schedule.worker.name if schedule.worker else ""
+            day_index = schedule.year_day.date.weekday()  # 0 = Monday, 6 = Sunday
+            aggregated_schedules[key]["workers_by_day"][day_index] = schedule.worker.name if schedule.worker else ""
+            aggregated_schedules[key]["day_ids"][day_index] = schedule.day_id
 
-        return render_template('editor.html', week_number=week_number, year=year, organized_schedules=organized_schedules, no_schedules=no_schedules)
+        # Convert to a list for template rendering
+        schedule_rows = list(aggregated_schedules.values())
 
-
+        return render_template('editor.html', week_number=week_number, year=year, schedule_rows=schedule_rows, no_schedules=len(schedule_rows) == 0, workers_list=workers_list)
 
 
 
@@ -908,36 +916,38 @@ def schedule_worker():
     user_id = session['user_id']
     data = request.get_json()
 
-    worker_id = data.get('workerId')
+    print("Received data:", data)
+
+    worker_id = data.get('workerId') or None
     position_id = data.get('positionId')
     shift_id = data.get('shiftId')
     slot_id = data.get('slotId')
     day_id = data.get('dayId')
 
-    # Find the corresponding Year_Days entry
-    year_day = Year_Days.query.get(day_id)
-    if not year_day or year_day.user_id != user_id:
-        return jsonify({'error': 'Invalid day selected. Please check your inputs.'}), 400
+    if not all([position_id, shift_id, slot_id, day_id]):
+        return jsonify({'error': 'Missing required scheduling information.'}), 400
 
-    # No need to retrieve or validate the year separately
-    week_number = year_day.week_number
+
+    existing_schedule = Schedule.query.filter_by(
+        user_id=user_id,
+        position_id=position_id,
+        shift_id=shift_id,
+        slot_id=slot_id,
+        day_id=day_id
+    ).first()
+
+    if existing_schedule:
+        # If found, update the worker_id
+        existing_schedule.worker_id = worker_id
+    else:
+        # If not found, handle accordingly (either create a new one or just return an error/response)
+        return jsonify({'error': 'No existing schedule found to update.'}), 404
 
     try:
-        # Add the schedule item to the database
-        new_schedule = Schedule(
-            user_id=user_id,
-            worker_id=worker_id,
-            position_id=position_id,
-            shift_id=shift_id,
-            slot_id=slot_id,
-            day_id=day_id,
-            year=year_day.year,
-            week_number=week_number
-        )
-        db.session.add(new_schedule)
         db.session.commit()
         return jsonify({'message': 'Worker scheduled successfully!'}), 200
     except Exception as e:
+        db.session.rollback()
         return jsonify({'error': f'An error occurred: {str(e)}'}), 500
 
 
