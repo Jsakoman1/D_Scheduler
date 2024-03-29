@@ -90,6 +90,73 @@
     </div>
     
 
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            groupByPositionShiftAndSlot();
+        });
+
+        function groupByPositionShiftAndSlot() {
+            const rows = document.querySelectorAll('tbody tr');
+            let prevPositionName = null, prevShiftName = null, prevSlotName = null;
+            let positionRowSpan = 0, shiftRowSpan = 0, slotRowSpan = 0;
+            let prevPositionCell = null, prevShiftCell = null, prevSlotCell = null;
+
+            rows.forEach(row => {
+                const positionCell = row.cells[0]; // First cell is the position
+                const shiftCell = row.cells[1]; // Second cell is the shift
+                const slotCell = row.cells[2]; // Third cell is the slot
+                const currentPositionName = positionCell.textContent;
+                const currentShiftName = shiftCell.textContent;
+                const currentSlotName = slotCell.textContent;
+
+                // Same position
+                if (currentPositionName === prevPositionName) {
+                    positionCell.style.display = 'none';
+                    positionRowSpan++;
+                    prevPositionCell.rowSpan = positionRowSpan + 1;
+
+                    // Same shift within the position
+                    if (currentShiftName === prevShiftName) {
+                        shiftCell.style.display = 'none';
+                        shiftRowSpan++;
+                        prevShiftCell.rowSpan = shiftRowSpan + 1;
+
+                        // Same slot within the shift
+                        if (currentSlotName === prevSlotName) {
+                            slotCell.style.display = 'none';
+                            slotRowSpan++;
+                            prevSlotCell.rowSpan = slotRowSpan + 1;
+                        } else {
+                            // New slot, reset slot rowspan, keep the cell
+                            slotRowSpan = 0;
+                            prevSlotCell = slotCell;
+                        }
+                    } else {
+                        // New shift, reset shift and slot rowspans, keep the cells
+                        shiftRowSpan = 0;
+                        slotRowSpan = 0;
+                        prevShiftCell = shiftCell;
+                        prevSlotCell = slotCell;
+                    }
+                } else {
+                    // New position, reset all rowspans, keep the cells
+                    positionRowSpan = 0;
+                    shiftRowSpan = 0;
+                    slotRowSpan = 0;
+                    prevPositionCell = positionCell;
+                    prevShiftCell = shiftCell;
+                    prevSlotCell = slotCell;
+                }
+
+                // Update previous trackers
+                prevPositionName = currentPositionName;
+                prevShiftName = currentShiftName;
+                prevSlotName = currentSlotName;
+            });
+        }
+    </script>
+    
     <script>
         function navigateWeek(direction) {
             const currentWeek = parseInt("{{ week_number }}", 10);

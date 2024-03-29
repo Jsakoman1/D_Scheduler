@@ -10,7 +10,7 @@ from collections import OrderedDict
 import os
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import joinedload
-
+from sqlalchemy import asc
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
@@ -848,7 +848,11 @@ def editor():
             joinedload(Schedule.slot),
             joinedload(Schedule.worker),
             joinedload(Schedule.year_day)
-        ).filter_by(user_id=user_id, week_number=week_str).all()
+        ).filter_by(user_id=user_id, week_number=week_str).order_by(
+            asc(Schedule.position_id), 
+            asc(Schedule.shift_id), 
+            asc(Schedule.slot_id)
+        ).all()
 
         # Aggregate schedules by position, shift, and slot
         aggregated_schedules = {}
