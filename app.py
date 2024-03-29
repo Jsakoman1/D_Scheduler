@@ -629,14 +629,13 @@ def shift_has_data(existing_templates, position_id, shift_id):
 @employer_required
 def template():
     user_id = current_user.id
-    positions = Position.query.all()
-    shifts = Shift.query.all()
-    slots = Slot.query.all()
+    positions = Position.query.filter_by(user_id=user_id).all()
+    shifts = Shift.query.filter_by(user_id=user_id).all()
+    slots = Slot.query.filter_by(user_id=user_id).all()
 
     
     existing_templates = Template.query.filter_by(user_id=user_id).all()
-    # Convert the query results into a more easily accessible structure
-    # This structure will help to check if a specific combination of position, shift, and slot is selected
+
     selected_combinations = {(template.position_id, template.shift_id, template.slot_id) for template in existing_templates}
     
     print(selected_combinations)  # Debugging: print selected_combinations to see its contents
