@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Simple View</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    {% include 'navbar.html' %}
+    <div class="container">
+        <h1>Simple Schedule View</h1>
+
+
+        <div class="week-navigation">
+            <button onclick="navigateWeek('prev')">← Previous Week</button>
+            <span><strong>Week {{ week_number }} of {{ year }}</strong></span>
+            <button onclick="navigateWeek('next')">Next Week →</button>
+        </div>
+        
+        <script>
+            function navigateWeek(direction) {
+                let week = {{ week_number }};
+                let year = {{ year }};
+                if (direction === 'next') {
+                    week++;
+                    if (week > 52) {
+                        week = 1;
+                        year++;
+                    }
+                } else if (direction === 'prev') {
+                    week--;
+                    if (week < 1) {
+                        week = 52;
+                        year--;
+                    }
+                }
+                window.location.href = `/simple_view?week=${week}&year=${year}`;
+            }
+        </script>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Position</th>
+                    <th>Shift</th>
+                    <th>Slot</th>
+                    <th>Workers</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for (position, shift, slot), data in schedule_data.items() %}
+                <tr>
+                    <td>{{ position }}</td>
+                    <td>{{ shift }}</td>
+                    <td>{{ slot }}</td>
+                    <td>{{ data.workers_text }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

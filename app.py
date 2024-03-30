@@ -11,6 +11,7 @@ import os
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import joinedload
 from sqlalchemy import asc
+from itertools import groupby
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
@@ -276,7 +277,11 @@ def ensure_year_days_exist(user_id, year):
         db.session.add(new_day)
     db.session.commit()
 
-
+def shift_has_data(existing_templates, position_id, shift_id):
+    for template in existing_templates:
+        if (template.position_id == position_id) and (template.shift_id == shift_id):
+            return True
+    return False
 
 
 
@@ -393,12 +398,23 @@ def delete_user(user_id):
 
 
 
+# EMPLOYEE SECTION
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    if current_user.role == 'employee':
+        user_id = session.get('user_id')  # Retrieve user ID from the session
+        username = session.get('username')
+        return render_template('dashboard.html', user_id = user_id, username = username)
+    else:
+        flash('You are not authorized to view this page.', 'error')
+        return redirect(url_for('index'))
+
+
 
 
 
 # EMPLOYERS SECTION
-
-
 @app.route('/')
 def index():
     # Check if the user is logged in
@@ -494,7 +510,8 @@ def delete_item_route(table_name, item_id):
 
 
 
-# Display workers route
+#FLASK ROUTES FOR WEB PAGES
+
 @app.route('/workers')
 @employer_required
 def display_workers():
@@ -514,8 +531,6 @@ def display_workers():
 
 
 
-
-# Display functions route
 @app.route('/functions')
 @employer_required
 def display_functions():
@@ -527,7 +542,7 @@ def display_functions():
     functions = fetch_all(user_id, 'Function')
     return render_template('functions.html', functions=functions)
 
-# Display positions route
+
 @app.route('/positions')
 @employer_required
 def display_positions():
@@ -539,7 +554,7 @@ def display_positions():
     positions = fetch_all(user_id, 'Position')
     return render_template('positions.html', positions=positions)
 
-# Display shifts route
+
 @app.route('/shifts')
 @employer_required
 def display_shifts():
@@ -551,7 +566,7 @@ def display_shifts():
     shifts = fetch_all(user_id, 'Shift')
     return render_template('shifts.html', shifts=shifts)
 
-# Display slots route
+
 @app.route('/slots')
 @employer_required
 def display_slots():
@@ -563,65 +578,6 @@ def display_slots():
     slots = fetch_all(user_id, 'Slot')
     return render_template('slots.html', slots=slots)
 
-
-# Scheduling route
-@app.route('/scheduling')
-@employer_required
-def scheduling():
-    if 'user_id' not in session:
-        flash('You must be logged in to view this page.', 'error')
-        return redirect(url_for('login'))
-
-    user_id = session['user_id']
-    workers = fetch_all(user_id, 'Worker')
-    positions = fetch_all(user_id, 'Position')
-    shifts = fetch_all(user_id, 'Shift')
-    slots = fetch_all(user_id, 'Slot')
-    schedule_events = fetch_all(user_id, 'Schedule') 
-    days = fetch_all(user_id, 'Year_Days')
-
-    # Fetch all unique years for the user
-    unique_years = fetch_all_unique_years(user_id)
-
-    # Create a dictionary of worker names
-    worker_names = {worker.worker_id: f"{worker.name} {worker.last_name}" for worker in workers}
-
-    return render_template('scheduling.html', workers=workers, positions=positions, shifts=shifts, slots=slots, days=days, schedule_events=schedule_events, unique_years=unique_years, worker_names=worker_names)
-
-
-
-
-
-
-
-# Scheduling route
-@app.route('/schedule')
-@employer_required
-def schedule():
-    if 'user_id' not in session:
-        flash('You must be logged in to view this page.', 'error')
-        return redirect(url_for('login'))
-
-    user_id = session['user_id']
-    
-    # Fetch all schedules grouped by week_number
-    grouped_schedules = {}
-    schedules = Schedule.query.filter_by(user_id=user_id).all()
-    for schedule in schedules:
-        week_number = schedule.week_number
-        if week_number not in grouped_schedules:
-            grouped_schedules[week_number] = []
-        grouped_schedules[week_number].append(schedule)
-
-    # Pass the grouped schedule data to the template
-    return render_template('schedule.html', grouped_schedules=grouped_schedules)
-
-
-def shift_has_data(existing_templates, position_id, shift_id):
-    for template in existing_templates:
-        if (template.position_id == position_id) and (template.shift_id == shift_id):
-            return True
-    return False
 
 
 @app.route('/template', methods=['GET', 'POST'])
@@ -661,126 +617,6 @@ def template():
         return redirect(url_for('template'))
 
     return render_template('template.html', positions=positions, shifts=shifts, slots=slots, selected_combinations=selected_combinations, existing_templates=existing_templates, shift_has_data=shift_has_data)
-
-
-
-
-
-
-@app.route('/schedule_template', methods=['GET', 'POST'])
-@employer_required  # If you have an employer required decorator, apply it here
-def schedule_template():
-    user_id = session['user_id']
-
-    # Handle POST request
-    if request.method == 'POST':
-        input_week_number = request.form.get('week_number', type=int)
-        year = request.form.get('year', type=int)
-
-        # Ensure that days exist for the selected week and year
-        ensure_year_days_exist(user_id, year)
-
-        # Format the week number as YYWW (e.g., 2201)
-        formatted_week_number = f"{str(year)[-2:]}{str(input_week_number).zfill(2)}"
-        
-        # Query days for the selected week
-        days_in_week = Year_Days.query.filter_by(user_id=user_id, year=year, week_number=formatted_week_number).all()
-
-        if not days_in_week:
-            flash('No days found for the selected week and year.', 'error')
-            return redirect(url_for('scheduling'))  # Redirect to scheduling route
-
-        # Query templates for the user
-        templates = Template.query.filter_by(user_id=user_id).all()
-
-        # Create schedule entries for each day and template combination
-        for day in days_in_week:
-            for template in templates:
-                new_schedule = Schedule(
-                    user_id=user_id,
-                    position_id=template.position_id,
-                    shift_id=template.shift_id,
-                    slot_id=template.slot_id,
-                    day_id=day.day_id,
-                    year=year,
-                    week_number=formatted_week_number,
-                    worker_id=None  # Worker ID will be updated later
-                )
-                db.session.add(new_schedule)
-        
-        # Commit changes to the database
-        db.session.commit()
-        
-        # Flash success message
-        flash('Schedule template for the week created successfully!', 'success')
-        
-        # Redirect to prevent form resubmission
-        return redirect(url_for('schedule_template'))
-
-    # Handle GET request or any other method
-    else:
-        # Query distinct scheduled weeks for the user
-        scheduled_weeks = db.session.query(Schedule.week_number).filter(Schedule.user_id == user_id).distinct().all()
-        scheduled_weeks = [week[0] for week in scheduled_weeks]  # Flatten the list
-        
-        # Query positions, shifts, and slots
-        positions = Position.query.all()
-        shifts = Shift.query.all()
-        slots = Slot.query.all()
-
-        # Group schedules by week for easy access in the template
-        grouped_schedules = {}
-        for week in scheduled_weeks:
-            schedules = Schedule.query.filter_by(user_id=user_id, week_number=week).all()
-            grouped_schedules[week] = schedules
-
-        
-        # Preparing data
-        organized_schedules = {}
-        for week in scheduled_weeks:
-            # Initialize a dictionary to hold schedule data organized by position, shift, and slot
-            schedule_matrix = {}
-
-            week_schedules = Schedule.query.filter_by(user_id=user_id, week_number=week).all()
-            for schedule in week_schedules:
-                key = (schedule.position_id, schedule.shift_id, schedule.slot_id)
-                if key not in schedule_matrix:
-                    schedule_matrix[key] = {"position": schedule.position.name, "shift": schedule.shift.name, "slot": schedule.slot.name, "workers_by_day": [""]*7}
-                
-                day_index = schedule.year_day.day_of_week - 1  # Assuming day_of_week is 1-7 (Monday-Sunday)
-                schedule_matrix[key]["workers_by_day"][day_index] = schedule.worker.name if schedule.worker else ""
-            
-            organized_schedules[week] = schedule_matrix.values()
-
-        # Render the template with scheduled_weeks, positions, shifts, slots, and grouped_schedules
-        return render_template('schedule_template.html', scheduled_weeks=scheduled_weeks, positions=positions, shifts=shifts, slots=slots, grouped_schedules=grouped_schedules, organized_schedules=organized_schedules)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# EMPLOYEE SECTION
-@app.route('/dashboard')
-@login_required
-def dashboard():
-    if current_user.role == 'employee':
-        user_id = session.get('user_id')  # Retrieve user ID from the session
-        username = session.get('username')
-        return render_template('dashboard.html', user_id = user_id, username = username)
-    else:
-        flash('You are not authorized to view this page.', 'error')
-        return redirect(url_for('index'))
 
 
 
@@ -879,6 +715,98 @@ def editor():
         return render_template('editor.html', week_number=week_number, year=year, schedule_rows=schedule_rows, no_schedules=len(schedule_rows) == 0, workers_list=workers_list)
 
 
+@app.route('/simple_view')
+@employer_required
+def simple_view():
+    from datetime import date
+    user_id = session['user_id']
+    today = date.today()
+    current_week_number = today.isocalendar()[1]
+    current_year = today.year
+
+    year = request.args.get('year', default=current_year, type=int)
+    week_number = request.args.get('week', default=current_week_number, type=int)
+    formatted_week_number = f"{str(year)[-2:]}{str(week_number).zfill(2)}"
+
+    ensure_year_days_exist(user_id, year)
+
+    schedules = Schedule.query.options(
+        joinedload(Schedule.worker),
+        joinedload(Schedule.position),
+        joinedload(Schedule.shift),
+        joinedload(Schedule.slot),
+        joinedload(Schedule.year_day)
+    ).filter(
+        Schedule.user_id == user_id,
+        Schedule.year == year,
+        Schedule.week_number == formatted_week_number
+    ).all()
+
+    schedule_data = {}
+    for schedule in schedules:
+        key = (schedule.position.name, schedule.shift.name, schedule.slot.name)
+        if key not in schedule_data:
+            schedule_data[key] = {"workers": {}}
+        worker_name = schedule.worker.name if schedule.worker else ""
+        day_of_week = schedule.year_day.date.strftime("%A")
+        if day_of_week not in schedule_data[key]["workers"]:
+            schedule_data[key]["workers"][day_of_week] = []
+        schedule_data[key]["workers"][day_of_week].append(worker_name)
+
+    def group_workers_by_consecutive_days(workers_by_day):
+        # Define the order of days for sorting purposes.
+        days_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        
+        # Filter out days without assigned workers (where worker names are None, null, or "")
+        filtered_workers_by_day = {day: workers for day, workers in workers_by_day.items() if all(name for name in workers)}
+
+        # Prepare a list of active days (days with at least one worker assigned)
+        active_days = list(filtered_workers_by_day.keys())
+
+        # Initialize a list to hold the formatted strings of grouped days with workers
+        grouped_data = []
+
+        # Only proceed if there are any active days
+        if not active_days:
+            return ""
+
+        # Sort active days based on their occurrence in the week to maintain chronological order
+        sorted_active_days = sorted(active_days, key=lambda day: days_order.index(day))
+
+        # Variables to track the current group of consecutive days and their assigned workers
+        current_group = [sorted_active_days[0]]
+        current_workers = filtered_workers_by_day[sorted_active_days[0]]
+
+        for day in days_order[days_order.index(current_group[-1]) + 1:]:
+            if day in sorted_active_days:
+                if filtered_workers_by_day[day] == current_workers:
+                    current_group.append(day)
+                else:
+                    # Format and add the current group to the output
+                    days_text = f"{current_group[0]} - {current_group[-1]}" if len(current_group) > 1 else current_group[0]
+                    grouped_data.append(f"{days_text}: {', '.join(current_workers)}")
+                    # Start a new group
+                    current_group = [day]
+                    current_workers = filtered_workers_by_day[day]
+            else:
+                # Once we reach a day that's not in sorted_active_days, we can break the loop
+                break
+
+        # Don't forget to process the last group
+        if current_group:
+            days_text = f"{current_group[0]} - {current_group[-1]}" if len(current_group) > 1 else current_group[0]
+            grouped_data.append(f"{days_text}: {', '.join(current_workers)}")
+
+        return ", ".join(grouped_data)
+
+    # Apply the new grouping function
+    for key, value in schedule_data.items():
+        workers_text = group_workers_by_consecutive_days(value["workers"])
+        schedule_data[key]["workers_text"] = workers_text
+
+    return render_template('simple_view.html', schedule_data=schedule_data, year=year, week_number=week_number)
+
+
 
 @app.route('/delete_week_schedule', methods=['POST'])
 @employer_required
@@ -909,7 +837,6 @@ def get_workers():
 
 
 
-
 @app.route('/schedule_worker', methods=['POST'])
 @employer_required
 def schedule_worker():
@@ -929,7 +856,6 @@ def schedule_worker():
 
     if not all([position_id, shift_id, slot_id, day_id]):
         return jsonify({'error': 'Missing required scheduling information.'}), 400
-
 
     existing_schedule = Schedule.query.filter_by(
         user_id=user_id,
@@ -952,6 +878,10 @@ def schedule_worker():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'An error occurred: {str(e)}'}), 500
+
+
+
+
 
 
 
