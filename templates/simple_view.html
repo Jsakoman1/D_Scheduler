@@ -10,7 +10,6 @@
     <div class="container">
         <h1>Simple Schedule View</h1>
 
-
         <div class="week-navigation">
             <button onclick="navigateWeek('prev')">← Previous Week</button>
             <span><strong>Week {{ week_number }} of {{ year }}</strong></span>
@@ -37,23 +36,21 @@
                 window.location.href = `/simple_view?week=${week}&year=${year}`;
             }
         </script>
-        
+
         <table>
             <thead>
                 <tr>
-                    <th>Position</th>
-                    <th>Shift</th>
-                    <th>Slot</th>
-                    <th>Workers</th>
+                    {% for header in headers %}
+                    <th>{{ header }}</th>
+                    {% endfor %}
                 </tr>
             </thead>
             <tbody>
-                {% for (position, shift, slot), data in schedule_data.items() %}
+                {% for row in rows %}
                 <tr>
-                    <td>{{ position }}</td>
-                    <td>{{ shift }}</td>
-                    <td>{{ slot }}</td>
-                    <td>{{ data.workers_text }}</td>
+                    {% for cell in row %}
+                    <td>{{ cell }}</td>
+                    {% endfor %}
                 </tr>
                 {% endfor %}
             </tbody>

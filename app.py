@@ -6,7 +6,7 @@ import hashlib
 import datetime
 import stripe
 from datetime import timedelta
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 import os
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import joinedload
@@ -719,6 +719,7 @@ def editor():
 @employer_required
 def simple_view():
     from datetime import date
+
     user_id = session['user_id']
     today = date.today()
     current_week_number = today.isocalendar()[1]
@@ -727,8 +728,6 @@ def simple_view():
     year = request.args.get('year', default=current_year, type=int)
     week_number = request.args.get('week', default=current_week_number, type=int)
     formatted_week_number = f"{str(year)[-2:]}{str(week_number).zfill(2)}"
-
-    ensure_year_days_exist(user_id, year)
 
     schedules = Schedule.query.options(
         joinedload(Schedule.worker),
@@ -742,69 +741,68 @@ def simple_view():
         Schedule.week_number == formatted_week_number
     ).all()
 
-    schedule_data = {}
+    position_shift_structure = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+
     for schedule in schedules:
-        key = (schedule.position.name, schedule.shift.name, schedule.slot.name)
-        if key not in schedule_data:
-            schedule_data[key] = {"workers": {}}
-        worker_name = schedule.worker.name if schedule.worker else ""
+        position_shift_key = (schedule.position.name, schedule.shift.name)
+        slot_name = schedule.slot.name
+        worker_name = schedule.worker.name if schedule.worker else None
         day_of_week = schedule.year_day.date.strftime("%A")
-        if day_of_week not in schedule_data[key]["workers"]:
-            schedule_data[key]["workers"][day_of_week] = []
-        schedule_data[key]["workers"][day_of_week].append(worker_name)
 
+        if worker_name:
+            position_shift_structure[position_shift_key][slot_name][day_of_week].append(worker_name)
+    
     def group_workers_by_consecutive_days(workers_by_day):
-        # Define the order of days for sorting purposes.
         days_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-        
-        # Filter out days without assigned workers (where worker names are None, null, or "")
-        filtered_workers_by_day = {day: workers for day, workers in workers_by_day.items() if all(name for name in workers)}
+        grouped = []
+        prev_workers = None
+        group_start = None
+        prev_day_index = -2  # Initialize with an impossible index for comparison
 
-        # Prepare a list of active days (days with at least one worker assigned)
-        active_days = list(filtered_workers_by_day.keys())
-
-        # Initialize a list to hold the formatted strings of grouped days with workers
-        grouped_data = []
-
-        # Only proceed if there are any active days
-        if not active_days:
-            return ""
-
-        # Sort active days based on their occurrence in the week to maintain chronological order
-        sorted_active_days = sorted(active_days, key=lambda day: days_order.index(day))
-
-        # Variables to track the current group of consecutive days and their assigned workers
-        current_group = [sorted_active_days[0]]
-        current_workers = filtered_workers_by_day[sorted_active_days[0]]
-
-        for day in days_order[days_order.index(current_group[-1]) + 1:]:
-            if day in sorted_active_days:
-                if filtered_workers_by_day[day] == current_workers:
-                    current_group.append(day)
-                else:
-                    # Format and add the current group to the output
-                    days_text = f"{current_group[0]} - {current_group[-1]}" if len(current_group) > 1 else current_group[0]
-                    grouped_data.append(f"{days_text}: {', '.join(current_workers)}")
-                    # Start a new group
-                    current_group = [day]
-                    current_workers = filtered_workers_by_day[day]
+        for day in days_order:
+            current_day_index = days_order.index(day)
+            workers = workers_by_day.get(day, [])
+            # Skip days without workers
+            if not workers:
+                continue
+            # Check if current day is consecutive to previous and has the same workers
+            if current_day_index == prev_day_index + 1 and workers == prev_workers:
+                prev_day_index = current_day_index
+                continue
             else:
-                # Once we reach a day that's not in sorted_active_days, we can break the loop
-                break
+                # If there was a previous group, conclude it before starting a new one
+                if prev_workers is not None:
+                    days_range = f"{group_start} - {days_order[prev_day_index]}" if group_start != days_order[prev_day_index] else days_order[prev_day_index]
+                    grouped_workers = ', '.join(prev_workers)
+                    grouped.append(f"{days_range}: {grouped_workers}")
+                # Start a new group with the current day
+                group_start = day
+                prev_day_index = current_day_index
+                prev_workers = workers
+        # Add the last group, if there are any workers
+        if prev_workers:
+            days_range = f"{group_start} - {days_order[prev_day_index]}" if group_start != days_order[prev_day_index] else days_order[prev_day_index]
+            grouped_workers = ', '.join(prev_workers)
+            grouped.append(f"{days_range}: {grouped_workers}")
 
-        # Don't forget to process the last group
-        if current_group:
-            days_text = f"{current_group[0]} - {current_group[-1]}" if len(current_group) > 1 else current_group[0]
-            grouped_data.append(f"{days_text}: {', '.join(current_workers)}")
+        return "; ".join(grouped)
 
-        return ", ".join(grouped_data)
+    rows = []
 
-    # Apply the new grouping function
-    for key, value in schedule_data.items():
-        workers_text = group_workers_by_consecutive_days(value["workers"])
-        schedule_data[key]["workers_text"] = workers_text
+    for position_shift, slots in position_shift_structure.items():
+        row = [*position_shift]
+        relevant_slots = sorted(slots.keys())
+        for slot in relevant_slots:
+            workers_by_day = slots[slot]
+            grouped_workers = group_workers_by_consecutive_days(workers_by_day)
+            row.append(grouped_workers if grouped_workers else "No workers")
+        rows.append(row)
 
-    return render_template('simple_view.html', schedule_data=schedule_data, year=year, week_number=week_number)
+    # For headers, we need a unique set of slots, but let's prepare it inside the loop
+    unique_slots = sorted(set(slot for _, slots in position_shift_structure.items() for slot in slots))
+    headers = ['Position', 'Shift'] + unique_slots
+
+    return render_template('simple_view.html', headers=headers, rows=rows, year=year, week_number=week_number)
 
 
 
