@@ -153,13 +153,13 @@ class Template(db.Model):
 class ActiveDaysTemplate(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    monday = db.Column(db.Boolean, nullable=False, default=False)
-    tuesday = db.Column(db.Boolean, nullable=False, default=False)
-    wednesday = db.Column(db.Boolean, nullable=False, default=False)
-    thursday = db.Column(db.Boolean, nullable=False, default=False)
-    friday = db.Column(db.Boolean, nullable=False, default=False)
-    saturday = db.Column(db.Boolean, nullable=False, default=False)
-    sunday = db.Column(db.Boolean, nullable=False, default=False)
+    monday = db.Column(db.Boolean, nullable=False, default=True)
+    tuesday = db.Column(db.Boolean, nullable=False, default=True)
+    wednesday = db.Column(db.Boolean, nullable=False, default=True)
+    thursday = db.Column(db.Boolean, nullable=False, default=True)
+    friday = db.Column(db.Boolean, nullable=False, default=True)
+    saturday = db.Column(db.Boolean, nullable=False, default=True)
+    sunday = db.Column(db.Boolean, nullable=False, default=True)
 
     # Relationships
     user = db.relationship('User', backref=db.backref('active_days_templates', lazy=True))
