@@ -11,32 +11,11 @@
         <h1>Simple Schedule View</h1>
 
         <div class="week-navigation">
-            <button onclick="navigateWeek('prev')">← Previous Week</button>
+            <a href="{{ url_for('simple_view', week=week_number-1, year=year) }}">← Previous Week</a>
             <span><strong>Week {{ week_number }} of {{ year }}</strong></span>
-            <button onclick="navigateWeek('next')">Next Week →</button>
+            <a href="{{ url_for('simple_view', week=week_number+1, year=year) }}">Next Week →</a>
         </div>
         
-        <script>
-            function navigateWeek(direction) {
-                let week = {{ week_number }};
-                let year = {{ year }};
-                if (direction === 'next') {
-                    week++;
-                    if (week > 52) {
-                        week = 1;
-                        year++;
-                    }
-                } else if (direction === 'prev') {
-                    week--;
-                    if (week < 1) {
-                        week = 52;
-                        year--;
-                    }
-                }
-                window.location.href = `/simple_view?week=${week}&year=${year}`;
-            }
-        </script>
-
         <table>
             <thead>
                 <tr>

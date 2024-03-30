@@ -150,7 +150,22 @@ class Template(db.Model):
         self.slot_id = slot_id
 
 
+class ActiveDaysTemplate(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    monday = db.Column(db.Boolean, nullable=False, default=False)
+    tuesday = db.Column(db.Boolean, nullable=False, default=False)
+    wednesday = db.Column(db.Boolean, nullable=False, default=False)
+    thursday = db.Column(db.Boolean, nullable=False, default=False)
+    friday = db.Column(db.Boolean, nullable=False, default=False)
+    saturday = db.Column(db.Boolean, nullable=False, default=False)
+    sunday = db.Column(db.Boolean, nullable=False, default=False)
 
+    # Relationships
+    user = db.relationship('User', backref=db.backref('active_days_templates', lazy=True))
+
+    def __init__(self, user_id):
+        self.user_id = user_id
 
 
 
@@ -878,7 +893,31 @@ def schedule_worker():
         return jsonify({'error': f'An error occurred: {str(e)}'}), 500
 
 
+@app.route('/template_days', methods=['GET', 'POST'])
+@login_required
+@employer_required
+def template_days():
+    user_id = current_user.id
+    active_days_template = ActiveDaysTemplate.query.filter_by(user_id=user_id).first()
+    if not active_days_template:
+        active_days_template = ActiveDaysTemplate(user_id=user_id)
 
+    if request.method == 'POST':
+        active_days_template.monday = bool(request.form.get('monday'))
+        active_days_template.tuesday = bool(request.form.get('tuesday'))
+        active_days_template.wednesday = bool(request.form.get('wednesday'))
+        active_days_template.thursday = bool(request.form.get('thursday'))
+        active_days_template.friday = bool(request.form.get('friday'))
+        active_days_template.saturday = bool(request.form.get('saturday'))
+        active_days_template.sunday = bool(request.form.get('sunday'))
+
+        db.session.add(active_days_template)
+        db.session.commit()
+
+        flash('Active days template saved successfully.')
+        return redirect(url_for('template_days'))
+
+    return render_template('template_days.html', active_days_template=active_days_template)
 
 
 

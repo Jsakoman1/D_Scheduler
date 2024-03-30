@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Template Days Configuration</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    {% include 'navbar.html' %}
+    <h1>Template Days Configuration</h1>
+    <form method="post" action="{{ url_for('template_days') }}">
+        <label><input type="checkbox" name="monday" {% if active_days_template.monday %}checked{% endif %}> Monday</label><br>
+        <label><input type="checkbox" name="tuesday" {% if active_days_template.tuesday %}checked{% endif %}> Tuesday</label><br>
+        <label><input type="checkbox" name="wednesday" {% if active_days_template.wednesday %}checked{% endif %}> Wednesday</label><br>
+        <label><input type="checkbox" name="thursday" {% if active_days_template.thursday %}checked{% endif %}> Thursday</label><br>
+        <label><input type="checkbox" name="friday" {% if active_days_template.friday %}checked{% endif %}> Friday</label><br>
+        <label><input type="checkbox" name="saturday" {% if active_days_template.saturday %}checked{% endif %}> Saturday</label><br>
+        <label><input type="checkbox" name="sunday" {% if active_days_template.sunday %}checked{% endif %}> Sunday</label><br>
+        <button type="submit">Save</button>
+    </form>
+</body>
+</html>
