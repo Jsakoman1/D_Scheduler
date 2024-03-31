@@ -893,6 +893,48 @@ def schedule_worker():
         return jsonify({'error': f'An error occurred: {str(e)}'}), 500
 
 
+
+
+@app.route('/fill_week_with_worker', methods=['POST'])
+def fill_week_with_worker():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized access'}), 403
+
+    data = request.get_json()
+    user_id = session['user_id']
+
+    try:
+        # Retrieve all schedules for the week based on the provided day_id
+        day = Year_Days.query.filter_by(day_id=data['dayId']).first()
+        if not day:
+            return jsonify({'error': 'Day not found'}), 404
+
+        start_of_week = day.date - timedelta(days=day.date.weekday())  # Monday
+        end_of_week = start_of_week + timedelta(days=6)  # Sunday
+
+        schedules = Schedule.query.join(Year_Days).filter(
+            Schedule.user_id == user_id,
+            Schedule.position_id == data['positionId'],
+            Schedule.shift_id == data['shiftId'],
+            Schedule.slot_id == data['slotId'],
+            Year_Days.date >= start_of_week,
+            Year_Days.date <= end_of_week
+        ).all()
+
+        for schedule in schedules:
+            schedule.worker_id = data.get('workerId')
+
+        db.session.commit()
+        return jsonify({'message': 'Week filled successfully!'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'An error occurred: {str(e)}'}), 500
+
+
+
+
+
+
 @app.route('/template_days', methods=['GET', 'POST'])
 @login_required
 @employer_required

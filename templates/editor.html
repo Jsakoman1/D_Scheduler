@@ -52,7 +52,9 @@
 
 
 
-            <table>
+
+             <!-- Existing Schedules Table -->
+            <table id="schedulesTable">
                 <thead>
                     <tr>
                         <th>Position</th>
@@ -65,6 +67,7 @@
                         <th>Friday</th>
                         <th>Saturday</th>
                         <th>Sunday</th>
+                    
                     </tr>
                 </thead>
                 <tbody>
@@ -88,7 +91,13 @@
 
         <div id="workersData" data-workers='{{ workers_list|tojson }}' style="display: none;"></div>
     </div>
-    
+
+
+
+
+
+
+
 
 
     <script>
@@ -196,6 +205,9 @@
             shiftId = cell.getAttribute('data-shift-id');
             slotId = cell.getAttribute('data-slot-id');
 
+
+
+
             // Display cell details
             const detailsDisplay = document.getElementById('detailsDisplay');
             detailsDisplay.innerHTML = `Position: ${position}<br>Shift: ${shift}<br>Slot: ${slot}<br>Day ID: ${dayId}<br>Worker: ${workerName}`;
@@ -224,10 +236,13 @@
             dropdown.innerHTML += `<option value="${worker[0]}"${selected}>${worker[1]}</option>`;
         });
 
+        let fillButton = document.createElement('button');
+            fillButton.textContent = 'Fill Week';
+            fillButton.style.display = 'block';
+            fillButton.style.marginTop = '5px';
 
         // Handle dropdown change to assign a worker to a cell
         dropdown.onchange = function() {
-            console.log("Dropdown changed!");
             const newWorkerId = this.value;
             const newWorkerName = this.options[this.selectedIndex].text;
 
@@ -237,14 +252,39 @@
                     shiftId: shiftId,
                     slotId: slotId,
                     dayId: dayId
-                });
+                }, function() {
+        // Success callback
+        cell.setAttribute('data-worker-id', newWorkerId); // Update the cell with the selected worker's ID
+        cell.textContent = newWorkerName; // Also update the cell's displayed text to show the worker's name
+        // Optionally, you could also refresh here or update other parts of your UI as needed
+    });
                 
                 lastSelectedCell = null;
         };
 
 
+        fillButton.onclick = function() {
+            console.log("Fill button clicked");
+            const dropdown = cell.querySelector('select');
+            const workerId = dropdown.value;
+            console.log("Worker ID for Fill Week:", workerId);
+            if (!workerId) {
+                alert('Please select a worker first.');
+                return;
+            }
+            fillWeekWithWorker({
+                workerId: workerId,
+                positionId: cell.getAttribute('data-position-id'),
+                shiftId: cell.getAttribute('data-shift-id'),
+                slotId: cell.getAttribute('data-slot-id'),
+                dayId: cell.getAttribute('data-day-id')
+            });
+        };
+
+
         cell.innerHTML = '';
         cell.appendChild(dropdown);
+        cell.appendChild(fillButton);
         lastSelectedCell = cell;
 
 
@@ -288,7 +328,36 @@
         })
         .catch(error => console.error('Error:', error));
     }
+
+
+
+    function fillWeekWithWorker(data) {
+    console.log("Filling week with worker:", data);
+    fetch('/fill_week_with_worker', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Week filled successfully:', data);
+        window.location.reload(); // Reload the page to reflect the changes
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+
+
     </script>
+
 
 
 </body>
